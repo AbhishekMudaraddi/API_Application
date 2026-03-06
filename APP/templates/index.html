@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Nearby Places Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-card: #f9fafb;
+        --accent: #2563eb; /* blue */
+        --accent-soft: rgba(37, 99, 235, 0.08);
+        --accent-alt: #f97316; /* orange */
+        --text-main: #0f172a;
+        --text-muted: #6b7280;
+        --danger: #f97373;
+        --border-subtle: #e5e7eb;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text-main);
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px;
+      }
+
+      .page {
+        width: 100%;
+        max-width: 960px;
+      }
+
+      .navbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .nav-brand {
+        font-size: 18px;
+        font-weight: 650;
+        color: var(--accent);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 10px;
+      }
+
+      .nav-link {
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+
+      .nav-link.active {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+
+      header {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+
+      .title {
+        font-size: 26px;
+        font-weight: 650;
+        letter-spacing: 0.03em;
+        color: var(--accent);
+      }
+
+      .subtitle {
+        margin-top: 6px;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+        gap: 16px;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .card {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid var(--border-subtle);
+        padding: 14px 14px 12px;
+      }
+
+      .card-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-muted);
+      }
+
+      .chip {
+        font-size: 11px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(249, 115, 22, 0.6);
+        color: var(--accent-alt);
+        background: rgba(249, 115, 22, 0.05);
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 12px;
+        margin-bottom: 6px;
+      }
+
+      @media (max-width: 600px) {
+        form {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      label {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      input,
+      select {
+        background: #ffffff;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        padding: 7px 10px;
+        font-size: 13px;
+        color: var(--text-main);
+        outline: none;
+        transition: border 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.4);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .btn-primary,
+      .btn-ghost {
+        border-radius: 999px;
+        padding: 8px 14px;
+        border: none;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #f9fafb;
+      }
+
+      .btn-ghost {
+        background: transparent;
+        color: var(--accent-alt);
+        border: 1px solid rgba(249, 115, 22, 0.5);
+      }
+
+      .small-hint {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .error {
+        margin-top: 6px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(248, 113, 113, 0.6);
+        background: rgba(248, 113, 113, 0.08);
+        color: #fecaca;
+        font-size: 12px;
+      }
+
+      .meta-line {
+        margin-top: 8px;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .meta-line code {
+        color: var(--accent);
+        font-size: 11px;
+      }
+
+      .section-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+
+      .places-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .place {
+        padding: 8px 9px;
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+        background: #f9fafb;
+      }
+
+      .place-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .place-name {
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .tag {
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.6);
+        color: var(--text-muted);
+      }
+
+      .place-meta {
+        margin-top: 3px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .place-address {
+        margin-top: 2px;
+        font-size: 12px;
+        color: #374151;
+      }
+
+      .info-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        border: 1px solid rgba(37, 99, 235, 0.4);
+        color: var(--accent);
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+
+      .empty {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .location-card {
+        margin-top: 10px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+        background: #f9fafb;
+      }
+
+      .location-title {
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      .location-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px 12px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      @media (max-width: 600px) {
+        .location-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      .location-grid strong {
+        color: #111827;
+        font-weight: 500;
+      }
+
+      #map {
+        margin-top: 10px;
+        height: 260px;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .docs {
+        margin-top: 8px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--border-subtle);
+        background: #ffffff;
+        font-size: 14px;
+      }
+
+      .docs h2 {
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      .docs h3 {
+        font-size: 14px;
+        margin: 10px 0 4px;
+      }
+
+      .docs p,
+      .docs li {
+        color: var(--text-muted);
+      }
+
+      .docs code {
+        background: #f3f4f6;
+        padding: 1px 4px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+
+      .docs ul {
+        margin-left: 18px;
+        margin-top: 4px;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="navbar">
+        <div class="nav-brand">Nearby Places</div>
+        <div class="nav-links">
+          <button
+            id="tab-playground"
+            class="nav-link active"
+            type="button"
+            onclick="showTab('playground')"
+          >
+            Playground
+          </button>
+          <button
+            id="tab-docs"
+            class="nav-link"
+            type="button"
+            onclick="showTab('docs')"
+          >
+            Documentation
+          </button>
+        </div>
+      </nav>
+
+      <header>
+        <h1 class="title">Nearby Places Dashboard</h1>
+        <p class="subtitle">
+          Explore nearby points of interest using your custom API, with location details from a public
+          reverse-geocoding service.
+        </p>
+      </header>
+
+      <main>
+        <section id="playground-section" class="layout">
+          <div class="card">
+          <div class="card-heading">
+            <h2 class="card-title">Search settings</h2>
+            <span class="chip">Input</span>
+          </div>
+
+          <form method="post">
+            <div class="field">
+              <label for="lat">Latitude</label>
+              <input
+                id="lat"
+                name="lat"
+                type="text"
+                required
+                placeholder="e.g. 12.9716"
+                value="{{ lat or '' }}"
+              />
+            </div>
+            <div class="field">
+              <label for="lon">Longitude</label>
+              <input
+                id="lon"
+                name="lon"
+                type="text"
+                required
+                placeholder="e.g. 77.5946"
+                value="{{ lon or '' }}"
+              />
+            </div>
+
+            <div class="field">
+              <label for="type">Place type or keyword</label>
+              <input
+                id="type"
+                name="type"
+                type="text"
+                placeholder="e.g. cafe, restaurant, gym, park..."
+                value="{{ place_type or 'cafe' }}"
+              />
+            </div>
+
+            <div class="field">
+              <label for="radius">Radius (km)</label>
+              <input
+                id="radius"
+                name="radius"
+                type="number"
+                min="0.1"
+                max="5"
+                step="0.1"
+                value="{{ radius or '1.0' }}"
+              />
+            </div>
+
+            <div class="field" style="grid-column: 1 / -1;">
+              <div class="actions">
+                <button class="btn-primary" type="submit">
+                  <span>Search nearby</span>
+                </button>
+                <button
+                  class="btn-ghost"
+                  type="button"
+                  onclick="useCurrentLocation()"
+                >
+                  <span>Use current location</span>
+                </button>
+                <button
+                  class="btn-ghost"
+                  type="button"
+                  onclick="clearForm()"
+                >
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+          </form>
+
+          {% if error_message %}
+          <div class="error">
+            {{ error_message }}
+          </div>
+          {% endif %}
+
+        </div>
+
+        <div class="card">
+          <div class="card-heading">
+            <h2 class="card-title">Results</h2>
+            <span class="chip">My API + Public API</span>
+          </div>
+
+          {% if nearby_data %}
+          {% set weather = nearby_data.weather if nearby_data.weather is defined else nearby_data.get('weather') %}
+          {% if weather %}
+          <div class="info-pill">
+            <span>Weather:</span>
+            <strong>{{ weather.temperature }}°C</strong>
+            <span>{{ weather.description }}</span>
+          </div>
+          {% endif %}
+
+          <p class="section-label">Nearby places (from my API)</p>
+          <ul class="places-list">
+            {% for p in nearby_data.places %}
+            <li class="place">
+              <div class="place-top">
+                <span class="place-name">{{ p.name }}</span>
+                <span class="tag">{{ p.distanceMeters }} m · {{ nearby_data.placeType }}</span>
+              </div>
+              <p class="place-meta">
+                Lat {{ '%.5f'|format(p.lat) }},
+                Lon {{ '%.5f'|format(p.lon) }}
+                · Source: {{ p.source }}
+              </p>
+              {% if p.address %}
+              <p class="place-address">{{ p.address }}</p>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+
+          {% if not nearby_data.places %}
+          <p class="empty">
+            Your API responded successfully but did not return any places for this input.
+          </p>
+          {% endif %}
+
+          {% if reverse_geo %}
+          <p class="section-label">Location details (public API)</p>
+          <div class="location-card">
+            <p class="location-title">
+              {{ reverse_geo.city or reverse_geo.locality or "Unknown locality" }},
+              {{ reverse_geo.principalSubdivision or reverse_geo.countryName or "" }}
+            </p>
+            <div class="location-grid">
+              <span>
+                <strong>Country:</strong>
+                {{ reverse_geo.countryName or reverse_geo.countryCode or 'N/A' }}
+              </span>
+              <span>
+                <strong>Continent:</strong>
+                {{ reverse_geo.continent or 'N/A' }}
+              </span>
+              <span>
+                <strong>Locality:</strong>
+                {{ reverse_geo.locality or reverse_geo.city or 'N/A' }}
+              </span>
+              <span>
+                <strong>Lat/Lon:</strong>
+                {{ '%.4f'|format(reverse_geo.latitude) if reverse_geo.latitude is defined else 'N/A' }},
+                {{ '%.4f'|format(reverse_geo.longitude) if reverse_geo.longitude is defined else 'N/A' }}
+              </span>
+            </div>
+          </div>
+          {% endif %}
+
+          {% else %}
+          <p class="empty">
+            Start by entering a location or using your current location, then run a search to see nearby
+            places and location details here.
+          </p>
+          {% endif %}
+        </div>
+
+        {% if nearby_data and lat and lon %}
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-heading">
+            <h2 class="card-title">Map view</h2>
+            <span class="chip">Reference</span>
+          </div>
+          <div
+            id="map"
+            data-lat="{{ lat }}"
+            data-lon="{{ lon }}"
+            data-places='{{ nearby_data.places | tojson }}'
+          ></div>
+        </div>
+        {% endif %}
+        </section>
+
+        <section id="docs-section" class="docs hidden">
+          <h2>How to use my Nearby Places API</h2>
+          <p>
+            This documentation describes the public Nearby Places + Weather API and how to call it from any application.
+          </p>
+
+          <h3>Base URL</h3>
+          <p>
+            <code>{{ scaleapp_base_url }}</code>
+          </p>
+
+          <h3>Endpoint</h3>
+          <p>
+            <code>GET /nearby</code>
+          </p>
+
+          <h3>Query parameters</h3>
+          <ul>
+            <li><code>lat</code> – required, latitude (e.g. <code>12.9716</code>)</li>
+            <li><code>lon</code> – required, longitude (e.g. <code>77.5946</code>)</li>
+            <li><code>type</code> – optional, place type (e.g. <code>cafe</code>, <code>restaurant</code>, <code>atm</code>)</li>
+            <li><code>radius</code> – optional, search radius in meters (default <code>1000</code>)</li>
+          </ul>
+
+          <h3>Example request URL</h3>
+          <p>
+            <code>{{ scaleapp_base_url }}/nearby?lat=12.9716&amp;lon=77.5946&amp;type=cafe&amp;radius=1500</code>
+          </p>
+
+          <h3>Response (shape)</h3>
+          <p>The API responds with JSON similar to:</p>
+          <pre><code>{
+  "location": { "lat": 12.9716, "lon": 77.5946 },
+  "placeType": "cafe",
+  "radiusMeters": 1500,
+  "weather": {
+    "temperature": 28.5,
+    "description": "clear sky"
+  },
+  "places": [
+    {
+      "name": "Example Cafe",
+      "lat": 12.9720,
+      "lon": 77.5950,
+      "distanceMeters": 120.4,
+      "address": "MG Road, Bengaluru",
+      "source": "GooglePlaces"
+    }
+  ]
+}</code></pre>
+
+          <p>
+            Use the base URL and query parameters above to integrate this API into your own apps or scripts.
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      function useCurrentLocation() {
+        if (!navigator.geolocation) {
+          alert("Geolocation is not supported by your browser.");
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            var latInput = document.getElementById("lat");
+            var lonInput = document.getElementById("lon");
+            latInput.value = position.coords.latitude.toFixed(6);
+            lonInput.value = position.coords.longitude.toFixed(6);
+          },
+          function (error) {
+            alert("Could not get your location: " + error.message);
+          }
+        );
+      }
+
+      function clearForm() {
+        var latInput = document.getElementById("lat");
+        var lonInput = document.getElementById("lon");
+        var radiusInput = document.getElementById("radius");
+        var typeInput = document.getElementById("type");
+
+        latInput.value = "";
+        lonInput.value = "";
+        radiusInput.value = "1.0";
+        if (typeInput) {
+          typeInput.value = "cafe";
+        }
+
+        window.location.href = "{{ url_for('index') }}";
+      }
+
+      function showTab(tab) {
+        var playground = document.getElementById("playground-section");
+        var docs = document.getElementById("docs-section");
+        var tabPlayground = document.getElementById("tab-playground");
+        var tabDocs = document.getElementById("tab-docs");
+
+        if (tab === "docs") {
+          playground.classList.add("hidden");
+          docs.classList.remove("hidden");
+          tabPlayground.classList.remove("active");
+          tabDocs.classList.add("active");
+        } else {
+          docs.classList.add("hidden");
+          playground.classList.remove("hidden");
+          tabDocs.classList.remove("active");
+          tabPlayground.classList.add("active");
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        var mapDiv = document.getElementById("map");
+        if (!mapDiv || typeof L === "undefined") {
+          return;
+        }
+
+        var lat = parseFloat(mapDiv.dataset.lat);
+        var lon = parseFloat(mapDiv.dataset.lon);
+        if (Number.isNaN(lat) || Number.isNaN(lon)) {
+          return;
+        }
+
+        var places = [];
+        try {
+          places = JSON.parse(mapDiv.dataset.places || "[]");
+        } catch (e) {
+          places = [];
+        }
+
+        var map = L.map("map").setView([lat, lon], 14);
+
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+
+        var blueIcon = L.icon({
+          iconUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+          shadowSize: [41, 41],
+        });
+
+        var redIcon = L.icon({
+          iconUrl:
+            "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowUrl:
+            "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+          shadowSize: [41, 41],
+        });
+
+        L.marker([lat, lon], { icon: blueIcon })
+          .addTo(map)
+          .bindPopup("Entered location");
+
+        places.forEach(function (p) {
+          if (typeof p.lat === "number" && typeof p.lon === "number") {
+            L.marker([p.lat, p.lon], { icon: redIcon })
+              .addTo(map)
+              .bindPopup(p.name || "Place");
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,8 @@
+# Do not upload local virtual environment or IDE / cache files to Elastic Beanstalk.
+
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.elasticbeanstalk/logs/
+
