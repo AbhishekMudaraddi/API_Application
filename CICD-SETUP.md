@@ -1,9 +1,9 @@
 # CI/CD Setup Guide (GitHub Actions)
 
-This project uses **GitHub Actions** for:
+This project uses **one GitHub Actions pipeline** (`.github/workflows/pipeline.yml`):
 
-- **CI** – Validate SCALEAPP and APP on every push and pull request.
-- **CD** – Deploy SCALEAPP to AWS Elastic Beanstalk when you push to `main`.
+- **Test** – Validates SCALEAPP and APP (install deps, verify app loads).
+- **Deploy** – If tests pass and the run is a push to `main`/`master`, deploys SCALEAPP to AWS Elastic Beanstalk.
 
 ---
 
@@ -50,31 +50,23 @@ The IAM user must have permissions to deploy to Elastic Beanstalk (e.g. `AWSElas
 
 ---
 
-## 3. What the workflows do
+## 3. What the pipeline does
 
-### CI (`.github/workflows/ci.yml`)
+**Single workflow:** `.github/workflows/pipeline.yml` (“Test and Deploy”)
 
 - **Runs on:** every push and pull request to `main` or `master`.
-- **Jobs:**
-  - **Validate SCALEAPP** – Installs `SCALEAPP/requirements.txt` and checks that the Flask app imports.
-  - **Validate APP** – Installs `APP/requirements.txt` and checks that the Flask app imports.
+- **Job 1 – Test:** Installs dependencies for SCALEAPP and APP and verifies both Flask apps load. No secrets required.
+- **Job 2 – Deploy:** Runs only if Test succeeds **and** the event is a **push** to `main` or `master`. Configures AWS from secrets and runs `eb deploy nearby-api-env` from the `SCALEAPP/` directory.
 
-No secrets are required for CI.
-
-### CD (`.github/workflows/deploy-scaleapp.yml`)
-
-- **Runs on:** push to `main` **only when** files under `SCALEAPP/` or the workflow file changed.
-- **Job:** Installs the EB CLI, configures AWS from secrets, then runs `eb deploy nearby-api-env` from the `SCALEAPP/` directory.
-
-So: push to `main` with changes in `SCALEAPP/` → SCALEAPP is deployed to your existing Elastic Beanstalk environment `nearby-api-env`.
+So: push to `main` → tests run → if they pass, SCALEAPP is deployed to Elastic Beanstalk (`nearby-api-env`). On pull requests, only the Test job runs (no deploy).
 
 ---
 
 ## 4. Change the branch or environment
 
-- **Branch:** Edit both workflow files and replace `main` (or `master`) with your default branch name.
-- **EB environment:** In `.github/workflows/deploy-scaleapp.yml`, change the `EB_ENVIRONMENT` env value (e.g. to your environment name).
-- **Region:** Change `AWS_REGION` in the deploy workflow if your EB app is in another region.
+- **Branch:** In `.github/workflows/pipeline.yml`, update the `on.push.branches` and the `if` condition on the deploy job to use your default branch name.
+- **EB environment:** In `.github/workflows/pipeline.yml`, change the `EB_ENVIRONMENT` env value (e.g. to your environment name).
+- **Region:** Change `AWS_REGION` in the same file if your EB app is in another region.
 
 ---
 
@@ -86,27 +78,13 @@ So: push to `main` with changes in `SCALEAPP/` → SCALEAPP is deployed to your 
    git commit -m "Enable CI/CD"
    git push origin main
    ```
-2. On GitHub, open the **Actions** tab. You should see:
-   - **CI** run (Validate SCALEAPP + Validate APP).
-   - **Deploy SCALEAPP to Elastic Beanstalk** run (only if something under `SCALEAPP/` or the deploy workflow changed).
-3. If deploy succeeded, your live API URL (e.g. `http://nearby-api-env.eba-....elasticbeanstalk.com`) will serve the new code.
+2. On GitHub, open the **Actions** tab. You should see one run: **Test and Deploy**. It will show:
+   - **Test** job (validate SCALEAPP and APP).
+   - **Deploy to Elastic Beanstalk** job (only after Test passes, and only on push to `main`/`master`).
+3. If both jobs succeed, your live API URL (e.g. `http://nearby-api-env.eba-....elasticbeanstalk.com`) will serve the new code.
 
 ---
 
 ## 6. Optional: deploy only on tags
 
-If you prefer to deploy only when you tag a release (e.g. `v1.0.0`):
-
-1. In `.github/workflows/deploy-scaleapp.yml`, change `on` to:
-
-   ```yaml
-   on:
-     push:
-       tags:
-         - "v*"
-   ```
-
-2. Remove the `paths` filter if you want any tag to trigger deploy.
-3. To deploy, run: `git tag v1.0.0 && git push origin v1.0.0`.
-
-You can keep the current `on: push: branches: [main]` if you prefer automatic deploy on every push to `main`.
+If you prefer to deploy only when you tag a release (e.g. `v1.0.0`), in `.github/workflows/pipeline.yml` you can add `push: tags: ["v*"]` and change the deploy job’s `if` to run only on tag pushes instead of branch pushes. Otherwise, the current setup deploys on every push to `main`/`master` after tests pass.
