@@ -1,90 +1,78 @@
-# CI/CD Setup Guide (GitHub Actions)
+# CI/CD for APP (GitHub Actions)
 
-This project uses **one GitHub Actions pipeline** (`.github/workflows/pipeline.yml`):
+The pipeline **tests** the APP and **deploys** it to **AWS Elastic Beanstalk** on every push to `main`/`master`. SCALEAPP is not deployed by this pipeline.
 
-- **Test** – Validates SCALEAPP and APP (install deps, verify app loads).
-- **Deploy** – If tests pass and the run is a push to `main`/`master`, deploys SCALEAPP to AWS Elastic Beanstalk.
+**Workflow:** `.github/workflows/pipeline.yml` (“Test and Deploy APP”)
+
+- **Test job:** Installs deps and verifies the Flask app loads.
+- **Deploy job:** Runs only after Test passes and only on **push** to `main`/`master`. Deploys the APP to the EB environment `app-env`.
 
 ---
 
-## 1. Push the project to GitHub
+## Next steps to deploy APP from GitHub
 
-If the project is not on GitHub yet:
+### 1. One-time: Create the Elastic Beanstalk app and environment for APP
 
-1. Create a new repository on GitHub (do not add a README if you already have one).
-2. From your project root (e.g. `ScalableProject/`), run:
+The pipeline expects an EB **application** named **APP** and an **environment** named **app-env**. Create them once from your machine:
 
+1. Install the EB CLI if needed:  
+   `pip install awsebcli`
+2. Configure AWS (if not already):  
+   `aws configure`  
+   Use the same IAM user that has Elastic Beanstalk permissions.
+3. Go to the APP folder and create the environment:
    ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-   git push -u origin main
+   cd APP
+   eb create app-env
    ```
-
-   Replace `YOUR_USERNAME` and `YOUR_REPO` with your GitHub username and repository name.
-
----
-
-## 2. Add GitHub Secrets (for deployment)
-
-The deploy workflow needs AWS credentials. Add them as **repository secrets**:
-
-1. Open your repo on GitHub → **Settings** → **Secrets and variables** → **Actions**.
-2. Click **New repository secret** and add:
-
-   | Name                     | Value                                      |
-   |--------------------------|--------------------------------------------|
-   | `AWS_ACCESS_KEY_ID`      | Your AWS access key ID                     |
-   | `AWS_SECRET_ACCESS_KEY`  | Your AWS secret access key                 |
-
-### How to get AWS credentials
-
-1. In the **AWS Console**, go to **IAM** → **Users** → your user (or create one).
-2. Open **Security credentials** → **Create access key**.
-3. Choose “Command Line Interface (CLI)” and create the key.
-4. Copy the **Access key ID** and **Secret access key** and paste them into the GitHub secrets above.
-
-The IAM user must have permissions to deploy to Elastic Beanstalk (e.g. `AWSElasticBeanstalkFullAccess` or a custom policy that allows EB deploy, S3, and CloudFormation as needed).
-
----
-
-## 3. What the pipeline does
-
-**Single workflow:** `.github/workflows/pipeline.yml` (“Test and Deploy”)
-
-- **Runs on:** every push and pull request to `main` or `master`.
-- **Job 1 – Test:** Installs dependencies for SCALEAPP and APP and verifies both Flask apps load. No secrets required.
-- **Job 2 – Deploy:** Runs only if Test succeeds **and** the event is a **push** to `main` or `master`. Configures AWS from secrets and runs `eb deploy nearby-api-env` from the `SCALEAPP/` directory.
-
-So: push to `main` → tests run → if they pass, SCALEAPP is deployed to Elastic Beanstalk (`nearby-api-env`). On pull requests, only the Test job runs (no deploy).
-
----
-
-## 4. Change the branch or environment
-
-- **Branch:** In `.github/workflows/pipeline.yml`, update the `on.push.branches` and the `if` condition on the deploy job to use your default branch name.
-- **EB environment:** In `.github/workflows/pipeline.yml`, change the `EB_ENVIRONMENT` env value (e.g. to your environment name).
-- **Region:** Change `AWS_REGION` in the same file if your EB app is in another region.
-
----
-
-## 5. Check that it works
-
-1. Push a commit to `main`:
+   When prompted, choose the same region as your SCALEAPP (e.g. `us-east-1`) and accept defaults if you like. This creates the application **APP** and environment **app-env** in AWS.
+4. Optional: check status and URL:
    ```bash
-   git add .
-   git commit -m "Enable CI/CD"
-   git push origin main
+   eb status
+   eb open
    ```
-2. On GitHub, open the **Actions** tab. You should see one run: **Test and Deploy**. It will show:
-   - **Test** job (validate SCALEAPP and APP).
-   - **Deploy to Elastic Beanstalk** job (only after Test passes, and only on push to `main`/`master`).
-3. If both jobs succeed, your live API URL (e.g. `http://nearby-api-env.eba-....elasticbeanstalk.com`) will serve the new code.
+5. Come back to the project root (you do not need to commit any new files from this step; the repo already has `APP/.elasticbeanstalk/config.yml`).
+
+If you prefer to create the application and environment in the **AWS Console** (Elastic Beanstalk → Create application → Create environment), name the application **APP** and the environment **app-env**, and use the same region. The repo’s `APP/.elasticbeanstalk/config.yml` should match those names.
 
 ---
 
-## 6. Optional: deploy only on tags
+### 2. Add GitHub Secrets (for deploy)
 
-If you prefer to deploy only when you tag a release (e.g. `v1.0.0`), in `.github/workflows/pipeline.yml` you can add `push: tags: ["v*"]` and change the deploy job’s `if` to run only on tag pushes instead of branch pushes. Otherwise, the current setup deploys on every push to `main`/`master` after tests pass.
+The deploy job needs AWS credentials:
+
+1. GitHub repo → **Settings** → **Secrets and variables** → **Actions**.
+2. Add (or confirm you have):
+   - **`AWS_ACCESS_KEY_ID`** – your AWS access key
+   - **`AWS_SECRET_ACCESS_KEY`** – your AWS secret key  
+
+Use an IAM user that can deploy to Elastic Beanstalk (e.g. `AWSElasticBeanstalkFullAccess` or equivalent).
+
+---
+
+### 3. Commit and push
+
+Commit the new APP files and workflow changes, then push to `main`:
+
+```bash
+cd /path/to/ScalableProject
+git add APP/application.py APP/.ebignore APP/.elasticbeanstalk/config.yml .github/workflows/pipeline.yml CICD-SETUP.md
+git status
+git commit -m "Deploy APP to EB via GitHub Actions"
+git push origin main
+```
+
+---
+
+### 4. Verify
+
+1. Open the repo on GitHub → **Actions**.
+2. You should see **Test and Deploy APP** run: **Test APP** passes, then **Deploy APP to Elastic Beanstalk** runs (only on push to `main`/`master`).
+3. When deploy succeeds, open your APP URL (from `eb status` in the APP folder, or from the EB console). You should see the Nearby Places Dashboard.
+
+---
+
+## Changing environment name or region
+
+- In **`.github/workflows/pipeline.yml`**, set `EB_APP_ENVIRONMENT` and `AWS_REGION` to your environment name and region.
+- In **`APP/.elasticbeanstalk/config.yml`**, set `environment` under `branch-defaults.default` and `default_region` under `global` to the same values.
