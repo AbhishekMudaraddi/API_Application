@@ -1,5 +1,6 @@
 
-# Elastic Beanstalk Files
+# Elastic Beanstalk Files (ignore logs; keep config so CI/CD can deploy)
 .elasticbeanstalk/*
+!.elasticbeanstalk/config.yml
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
