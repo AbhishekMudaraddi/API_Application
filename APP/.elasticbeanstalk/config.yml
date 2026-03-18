@@ -1,10 +1,15 @@
 branch-defaults:
   default:
-    environment: null
+    environment: app-env
     group_suffix: null
+environment-defaults:
+  app-env:
+    branch: null
+    repository: null
 global:
   application_name: APP
   branch: null
+  default_ec2_keyname: null
   default_platform: Python 3.12 running on 64bit Amazon Linux 2023
   default_region: us-east-1
   include_git_submodules: true
