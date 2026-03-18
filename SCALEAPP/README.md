@@ -9,7 +9,7 @@ A public REST API that returns **nearby places** (cafes, restaurants, ATMs, etc.
 **Live API:**
 
 ```
-http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com
+https://api.abhishekmudaraddi.com
 ```
 
 Use this as the base for all requests below. For local development, use `http://localhost:5000` instead.
@@ -31,7 +31,7 @@ Simple check that the API is up.
 **Example request**
 
 ```bash
-curl "http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com/"
+curl "https://api.abhishekmudaraddi.com/"
 ```
 
 **Example response** (`200 OK`)
@@ -191,10 +191,10 @@ Weather failures do not cause 502; the API still returns 200 with `weather: null
 
 ```bash
 # Health check
-curl "http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com/"
+curl "https://api.abhishekmudaraddi.com/"
 
 # Nearby cafes (Bangalore example)
-curl "http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com/nearby?lat=12.9716&lon=77.5946&type=cafe&radius=1500"
+curl "https://api.abhishekmudaraddi.com/nearby?lat=12.9716&lon=77.5946&type=cafe&radius=1500"
 ```
 
 ### Browser
@@ -205,13 +205,13 @@ Paste the URL in the address bar (same URLs as above). You will see the JSON res
 
 1. Method: **GET**
 2. URL:  
-   `http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com/nearby?lat=12.9716&lon=77.5946&type=cafe&radius=1500`
+   `https://api.abhishekmudaraddi.com/nearby?lat=12.9716&lon=77.5946&type=cafe&radius=1500`
 3. No headers or body required. Send the request.
 
 ### From your own app (e.g. JavaScript)
 
 ```javascript
-const baseUrl = "http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com";
+const baseUrl = "https://api.abhishekmudaraddi.com";
 const lat = 12.9716;
 const lon = 77.5946;
 const type = "cafe";
@@ -231,7 +231,7 @@ fetch(url)
 
 | What you need | Value |
 |---------------|--------|
-| **Base URL** | `http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com` |
+| **Base URL** | `https://api.abhishekmudaraddi.com` |
 | **Main endpoint** | `GET /nearby` |
 | **Required params** | `lat`, `lon` (numbers) |
 | **Optional params** | `type` (default `cafe`), `radius` (default `1000`, meters) |

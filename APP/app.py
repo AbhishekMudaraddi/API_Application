@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 SCALEAPP_BASE_URL = os.getenv(
     "SCALEAPP_BASE_URL",
-    "http://nearby-api-env.eba-z23r7ruf.us-east-1.elasticbeanstalk.com",
+    "https://api.abhishekmudaraddi.com",
 )
 
 
