@@ -54,6 +54,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Debug AWS identity and EB environments
+        run: |
+          aws sts get-caller-identity
+          aws elasticbeanstalk describe-environments --region "${{ env.AWS_REGION }}" --query "Environments[*].{Application:ApplicationName,Environment:EnvironmentName,Status:Status,Health:Health,URL:CNAME}" --output table
+
       - name: Deploy to Elastic Beanstalk
         run: |
           cd APP
