@@ -393,6 +393,191 @@
         margin-top: 4px;
       }
 
+      .compress-card .compress-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .compress-drop {
+        border: 2px dashed var(--border-subtle);
+        border-radius: 12px;
+        padding: 16px;
+        background: #fafafa;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+
+      .compress-drop:focus-within {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .compress-file-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .compress-file-row input[type="file"] {
+        flex: 1;
+        min-width: 200px;
+        font-size: 13px;
+      }
+
+      .compress-status {
+        font-size: 12px;
+        color: var(--text-muted);
+        min-height: 1.2em;
+      }
+
+      .compress-status.loading {
+        color: var(--accent);
+      }
+
+      .compress-error {
+        margin-top: 4px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(248, 113, 113, 0.5);
+        background: rgba(248, 113, 113, 0.08);
+        color: #b91c1c;
+        font-size: 12px;
+        display: none;
+      }
+
+      .compress-error.visible {
+        display: block;
+      }
+
+      .compress-result {
+        display: none;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding-top: 4px;
+      }
+
+      .compress-result.visible {
+        display: flex;
+      }
+
+      .btn-download {
+        border-radius: 999px;
+        padding: 8px 14px;
+        border: none;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        background: linear-gradient(135deg, #059669, #047857);
+        color: #ecfdf5;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .compress-steps-wrap {
+        margin-top: 4px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        background: #f9fafb;
+      }
+
+      .compress-steps-wrap.hidden {
+        display: none;
+      }
+
+      .compress-steps-title {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+      }
+
+      .compress-steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .compress-step {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--text-muted);
+        transition: color 0.2s ease;
+      }
+
+      .compress-step-icon {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        border: 2px solid #d1d5db;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+      }
+
+      .compress-step.pending .compress-step-icon {
+        border-color: #e5e7eb;
+        background: #f3f4f6;
+      }
+
+      .compress-step.active {
+        color: var(--text-main);
+      }
+
+      .compress-step.active .compress-step-icon {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
+        animation: compress-pulse 1.2s ease-in-out infinite;
+      }
+
+      @keyframes compress-pulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35);
+        }
+        50% {
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        }
+      }
+
+      .compress-step.done {
+        color: #065f46;
+      }
+
+      .compress-step.done .compress-step-icon {
+        border-color: #059669;
+        background: #059669;
+        color: #ffffff;
+        animation: none;
+      }
+
+      .compress-step.done .compress-step-icon::before {
+        content: "✓";
+      }
+
+      .compress-step-label {
+        padding-top: 1px;
+        line-height: 1.35;
+      }
+
       .hidden {
         display: none;
       }
@@ -610,6 +795,65 @@
           ></div>
         </div>
         {% endif %}
+
+        <div class="card compress-card" style="grid-column: 1 / -1;">
+          <div class="card-heading">
+            <h2 class="card-title">Compress PDF / DOCX</h2>
+            <span class="chip">Classmate API</span>
+          </div>
+          <div class="compress-inner">
+            <p class="small-hint" style="margin-top: 0;">
+              Upload a PDF or Word file. Your file is sent to the compression service, then you can
+              download the compressed result.
+            </p>
+            <div class="compress-drop">
+              <div class="compress-file-row">
+                <input
+                  id="compress-file"
+                  type="file"
+                  name="file"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                />
+                <button
+                  id="compress-submit"
+                  class="btn-primary"
+                  type="button"
+                  onclick="submitCompress()"
+                >
+                  Compress file
+                </button>
+              </div>
+              <p id="compress-status" class="compress-status"></p>
+            </div>
+
+            <div id="compress-steps-wrap" class="compress-steps-wrap hidden">
+              <p class="compress-steps-title">What happens next</p>
+              <ol class="compress-steps">
+                <li class="compress-step pending" id="compress-step-1">
+                  <span class="compress-step-icon" aria-hidden="true"></span>
+                  <span class="compress-step-label">Prepare file for upload</span>
+                </li>
+                <li class="compress-step pending" id="compress-step-2">
+                  <span class="compress-step-icon" aria-hidden="true"></span>
+                  <span class="compress-step-label">Send file to your dashboard (Flask)</span>
+                </li>
+                <li class="compress-step pending" id="compress-step-3">
+                  <span class="compress-step-icon" aria-hidden="true"></span>
+                  <span class="compress-step-label">Compress via classmate’s API (API Gateway)</span>
+                </li>
+                <li class="compress-step pending" id="compress-step-4">
+                  <span class="compress-step-icon" aria-hidden="true"></span>
+                  <span class="compress-step-label">Download compressed file</span>
+                </li>
+              </ol>
+            </div>
+
+            <div id="compress-error" class="compress-error"></div>
+            <div id="compress-result" class="compress-result">
+              <a id="compress-download" class="btn-download" href="#" download>Download compressed file</a>
+            </div>
+          </div>
+        </div>
         </section>
 
         <section id="docs-section" class="docs hidden">
@@ -784,6 +1028,137 @@
               .bindPopup(p.name || "Place");
           }
         });
+      });
+
+      var compressBlobUrl = null;
+
+      function setCompressStep(stepNum, state) {
+        var el = document.getElementById("compress-step-" + stepNum);
+        if (!el) {
+          return;
+        }
+        el.classList.remove("pending", "active", "done");
+        el.classList.add(state);
+      }
+
+      function resetCompressSteps() {
+        var i;
+        for (i = 1; i <= 4; i++) {
+          setCompressStep(i, "pending");
+        }
+        var wrap = document.getElementById("compress-steps-wrap");
+        if (wrap) {
+          wrap.classList.add("hidden");
+        }
+      }
+
+      function resetCompressUi() {
+        if (compressBlobUrl) {
+          URL.revokeObjectURL(compressBlobUrl);
+          compressBlobUrl = null;
+        }
+        var errEl = document.getElementById("compress-error");
+        var resEl = document.getElementById("compress-result");
+        var dl = document.getElementById("compress-download");
+        if (errEl) {
+          errEl.textContent = "";
+          errEl.classList.remove("visible");
+        }
+        if (resEl) {
+          resEl.classList.remove("visible");
+        }
+        if (dl) {
+          dl.removeAttribute("href");
+        }
+        resetCompressSteps();
+      }
+
+      function submitCompress() {
+        var input = document.getElementById("compress-file");
+        var statusEl = document.getElementById("compress-status");
+        var btn = document.getElementById("compress-submit");
+        var stepsWrap = document.getElementById("compress-steps-wrap");
+        if (!input || !input.files || !input.files[0]) {
+          alert("Please choose a PDF or DOCX file first.");
+          return;
+        }
+        resetCompressUi();
+
+        stepsWrap.classList.remove("hidden");
+        setCompressStep(1, "done");
+        setCompressStep(2, "active");
+
+        var fd = new FormData();
+        fd.append("file", input.files[0]);
+
+        statusEl.textContent = "Working through the steps below…";
+        statusEl.classList.add("loading");
+        btn.disabled = true;
+
+        fetch("{{ url_for('compress_proxy') }}", {
+          method: "POST",
+          body: fd,
+        })
+          .then(function (res) {
+            if (!res.ok) {
+              return res.text().then(function (t) {
+                try {
+                  var j = JSON.parse(t);
+                  throw new Error(j.error || j.message || t || "Request failed");
+                } catch (e) {
+                  if (e instanceof SyntaxError) {
+                    throw new Error(t || "Request failed");
+                  }
+                  throw e;
+                }
+              });
+            }
+            setCompressStep(2, "done");
+            setCompressStep(3, "active");
+
+            var disposition = res.headers.get("Content-Disposition");
+            var fname = "compressed-download";
+            if (disposition) {
+              var m = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(disposition);
+              if (m) {
+                try {
+                  fname = decodeURIComponent(m[1].replace(/"/g, "").trim());
+                } catch (ignore) {
+                  fname = m[1].replace(/"/g, "");
+                }
+              }
+            }
+            return res.blob().then(function (blob) {
+              setCompressStep(3, "done");
+              setCompressStep(4, "active");
+              compressBlobUrl = URL.createObjectURL(blob);
+              var dl = document.getElementById("compress-download");
+              dl.href = compressBlobUrl;
+              dl.setAttribute("download", fname);
+              setCompressStep(4, "done");
+              document.getElementById("compress-result").classList.add("visible");
+              statusEl.textContent = "All steps complete — download your file below.";
+            });
+          })
+          .catch(function (err) {
+            var errEl = document.getElementById("compress-error");
+            errEl.textContent = err.message || String(err);
+            errEl.classList.add("visible");
+            statusEl.textContent = "";
+            if (stepsWrap) {
+              stepsWrap.classList.add("hidden");
+            }
+          })
+          .finally(function () {
+            statusEl.classList.remove("loading");
+            btn.disabled = false;
+          });
+      }
+
+      document.addEventListener("change", function (e) {
+        if (e.target && e.target.id === "compress-file") {
+          resetCompressUi();
+        }
       });
     </script>
   </body>
