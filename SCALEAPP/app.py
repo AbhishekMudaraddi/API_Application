@@ -2,9 +2,19 @@ import os
 import math
 import requests
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+
+# CORS: browsers block cross-origin fetch unless the API sends Access-Control-Allow-Origin.
+# Without this, pages on http://127.0.0.1:5500 (Live Server) cannot call https://api.abhishekmudaraddi.com.
+# Optional: set CORS_ORIGINS="https://mysite.com,http://127.0.0.1:5500" to allow only listed origins.
+_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
+if _cors_origins:
+    CORS(app, origins=[o.strip() for o in _cors_origins.split(",") if o.strip()])
+else:
+    CORS(app)  # allow any origin (public GET API)
 
 # Read API keys from environment variables.
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
