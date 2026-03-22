@@ -452,14 +452,64 @@
 
       .compress-result {
         display: none;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-start;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 12px;
         padding-top: 4px;
       }
 
       .compress-result.visible {
         display: flex;
+      }
+
+      .compress-size-compare {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #a7f3d0;
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        font-size: 13px;
+        color: #065f46;
+        line-height: 1.5;
+      }
+
+      .compress-size-compare .compress-size-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 12px;
+        margin-bottom: 4px;
+      }
+
+      .compress-size-compare .compress-size-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .compress-size-compare strong {
+        font-weight: 600;
+        color: #047857;
+      }
+
+      .compress-size-compare .compress-size-value {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+
+      .compress-size-compare .compress-size-badge {
+        display: inline-block;
+        margin-top: 4px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #059669;
+        color: #ffffff;
+      }
+
+      .compress-size-compare .compress-size-badge.warn {
+        background: #d97706;
+        color: #fffbeb;
       }
 
       .btn-download {
@@ -850,6 +900,7 @@
 
             <div id="compress-error" class="compress-error"></div>
             <div id="compress-result" class="compress-result">
+              <div id="compress-size-compare" class="compress-size-compare" hidden></div>
               <a id="compress-download" class="btn-download" href="#" download>Download compressed file</a>
             </div>
           </div>
@@ -1032,6 +1083,68 @@
 
       var compressBlobUrl = null;
 
+      function formatBytes(bytes) {
+        if (bytes === null || bytes === undefined || isNaN(bytes)) {
+          return "—";
+        }
+        bytes = Number(bytes);
+        if (bytes === 0) {
+          return "0 B";
+        }
+        var k = 1024;
+        var sizes = ["B", "KB", "MB", "GB"];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        i = Math.min(Math.max(i, 0), sizes.length - 1);
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      function setCompressSizeCompare(originalBytes, compressedBytes) {
+        var el = document.getElementById("compress-size-compare");
+        if (!el) {
+          return;
+        }
+        var o = Number(originalBytes);
+        var c = Number(compressedBytes);
+        var html = "";
+        html +=
+          '<div class="compress-size-row"><strong>Original file</strong> <span class="compress-size-value">' +
+          formatBytes(o) +
+          "</span></div>";
+        html +=
+          '<div class="compress-size-row"><strong>Compressed file</strong> <span class="compress-size-value">' +
+          formatBytes(c) +
+          "</span></div>";
+        if (o > 0 && c >= 0) {
+          if (c < o) {
+            var saved = o - c;
+            var pct = ((saved / o) * 100).toFixed(1);
+            html +=
+              '<span class="compress-size-badge">≈ ' +
+              pct +
+              "% smaller (" +
+              formatBytes(saved) +
+              " saved)</span>";
+          } else if (c > o) {
+            html +=
+              '<span class="compress-size-badge warn">Output is larger than the original (can happen with some files)</span>';
+          } else {
+            html +=
+              '<span class="compress-size-badge">Same size as original</span>';
+          }
+        }
+        el.innerHTML = html;
+        el.hidden = false;
+      }
+
+      function clearCompressSizeCompare() {
+        var el = document.getElementById("compress-size-compare");
+        if (!el) {
+          return;
+        }
+        el.innerHTML = "";
+        el.hidden = true;
+      }
+
       function setCompressStep(stepNum, state) {
         var el = document.getElementById("compress-step-" + stepNum);
         if (!el) {
@@ -1070,6 +1183,7 @@
         if (dl) {
           dl.removeAttribute("href");
         }
+        clearCompressSizeCompare();
         resetCompressSteps();
       }
 
@@ -1082,6 +1196,7 @@
           alert("Please choose a PDF or DOCX file first.");
           return;
         }
+        var originalFileBytes = input.files[0].size;
         resetCompressUi();
 
         stepsWrap.classList.remove("hidden");
@@ -1135,9 +1250,10 @@
               var dl = document.getElementById("compress-download");
               dl.href = compressBlobUrl;
               dl.setAttribute("download", fname);
+              setCompressSizeCompare(originalFileBytes, blob.size);
               setCompressStep(4, "done");
               document.getElementById("compress-result").classList.add("visible");
-              statusEl.textContent = "All steps complete — download your file below.";
+              statusEl.textContent = "All steps complete — compare sizes below, then download.";
             });
           })
           .catch(function (err) {
