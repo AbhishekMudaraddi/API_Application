@@ -519,6 +519,89 @@ def planner_annotate_image():
     )
 
 
+@app.route("/planner/process-image", methods=["POST"])
+def planner_process_image():
+    """Planner helper: download an image URL, upload, then apply selected transform."""
+    body = request.get_json(silent=True) or {}
+    image_url = str(body.get("imageUrl", "")).strip()
+    action = str(body.get("action", "")).strip()
+    parameters = body.get("parameters")
+
+    if not image_url:
+        return {"error": "imageUrl is required"}, 400
+    if not action:
+        return {"error": "action is required"}, 400
+
+    try:
+        image_resp = requests.get(image_url, timeout=45)
+        image_resp.raise_for_status()
+    except requests.RequestException as exc:
+        return {"error": f"Failed to download source image: {exc!s}"}, 502
+
+    upload_files = {
+        "file": (
+            "planner-image.jpg",
+            image_resp.content,
+            image_resp.headers.get("Content-Type", "image/jpeg"),
+        )
+    }
+    try:
+        upload_resp = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/upload",
+            files=upload_files,
+            timeout=180,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image upload upstream failed: {exc!s}"}, 502
+
+    try:
+        upload_payload = upload_resp.json()
+    except Exception:
+        upload_payload = {"raw": upload_resp.text[:2000] if upload_resp.text else ""}
+
+    if upload_resp.status_code >= 400:
+        return upload_payload, upload_resp.status_code
+
+    uri = _extract_image_uri(upload_payload)
+    if not uri:
+        return {"error": "Upload succeeded but no image uri was returned."}, 502
+
+    transform_payload: dict = {"uri": uri, "action": action}
+    if isinstance(parameters, dict) and parameters:
+        transform_payload["parameters"] = parameters
+
+    try:
+        transform_resp = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
+            json=transform_payload,
+            timeout=240,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image transform upstream failed: {exc!s}"}, 502
+
+    try:
+        transformed_payload = transform_resp.json()
+    except Exception:
+        transformed_payload = {"raw": transform_resp.text[:2000] if transform_resp.text else ""}
+
+    if transform_resp.status_code >= 400:
+        return transformed_payload, transform_resp.status_code
+
+    transformed_uri = _extract_image_uri(transformed_payload) or uri
+    transformed_url = transformed_payload.get("url") if isinstance(transformed_payload, dict) else None
+    if not isinstance(transformed_url, str) or not transformed_url.strip():
+        transformed_url = _build_public_image_url(transformed_uri)
+
+    return jsonify(
+        {
+            "ok": True,
+            "uri": transformed_uri,
+            "url": transformed_url,
+            "upstream": transformed_payload,
+        }
+    )
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     error_message: str | None = None
