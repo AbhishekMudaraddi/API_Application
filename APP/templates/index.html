@@ -527,6 +527,81 @@
         gap: 6px;
       }
 
+      .image-card .image-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .image-upload-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .image-upload-row.hidden,
+      .image-transform-panel.hidden,
+      .image-parameter-field.hidden {
+        display: none;
+      }
+
+      .image-transform-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      @media (max-width: 760px) {
+        .image-transform-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .image-preview-wrap {
+        display: none;
+        width: 100%;
+        margin-top: 8px;
+      }
+
+      .image-preview-wrap.visible {
+        display: block;
+      }
+
+      .image-preview-wrap img {
+        width: 100%;
+        max-width: 420px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        background: #f8fafc;
+      }
+
+      .image-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .btn-secondary {
+        border-radius: 999px;
+        padding: 8px 14px;
+        border: 1px solid rgba(37, 99, 235, 0.35);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        background: #ffffff;
+        color: #1d4ed8;
+        text-decoration: none;
+      }
+
+      .image-step-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin: 8px 0 6px;
+      }
+
       .compress-steps-wrap {
         margin-top: 4px;
         padding: 12px 14px;
@@ -905,6 +980,135 @@
             </div>
           </div>
         </div>
+
+        <div class="card image-card" style="grid-column: 1 / -1;">
+          <div class="card-heading">
+            <h2 class="card-title">Image Upload + Transform</h2>
+            <span class="chip">Classmate API</span>
+          </div>
+          <p class="small-hint" style="margin-top: 0;">
+            Upload an image, then apply transforms (e.g. grayscale, resize) using your classmate's API.
+          </p>
+
+          <div class="field" style="margin-bottom: 8px;">
+            <label for="image-file">Choose image</label>
+            <input
+              id="image-file"
+              type="file"
+              accept="image/*"
+            />
+          </div>
+
+          <div class="image-step-label">Step 1: Upload</div>
+          <div id="image-upload-row" class="image-upload-row hidden" style="margin-bottom: 12px;">
+            <button id="image-upload-btn" class="btn-primary" type="button" onclick="uploadImageToClassmateApi()">
+              Upload selected image
+            </button>
+            <span id="image-upload-status" class="small-hint"></span>
+          </div>
+
+          <div id="image-transform-panel" class="image-transform-panel hidden">
+            <div class="image-step-label">Step 2: Choose transform operation</div>
+            <div class="image-transform-grid" style="margin-bottom: 8px;">
+              <div class="field">
+              <label for="image-action">Transform action</label>
+              <select id="image-action">
+                <option value="grayscale">grayscale</option>
+                <option value="resize">resize</option>
+                <option value="rotate">rotate</option>
+                <option value="crop">crop</option>
+                <option value="thumbnail">thumbnail</option>
+                <option value="blur">blur</option>
+                <option value="sharpen">sharpen</option>
+                <option value="contour">contour</option>
+                <option value="detail">detail</option>
+                <option value="emboss">emboss</option>
+                <option value="smooth">smooth</option>
+                <option value="edge_enhance">edge_enhance</option>
+                <option value="text">text</option>
+              </select>
+            </div>
+
+            <div class="field image-parameter-field" id="field-image-width">
+              <label for="image-width">Width</label>
+              <input id="image-width" type="number" min="1" placeholder="e.g. 400" />
+            </div>
+            <div class="field image-parameter-field" id="field-image-height">
+              <label for="image-height">Height</label>
+              <input id="image-height" type="number" min="1" placeholder="e.g. 300" />
+            </div>
+
+            <div class="field image-parameter-field hidden" id="field-image-x">
+              <label for="image-x">X</label>
+              <input id="image-x" type="number" min="0" placeholder="e.g. 0" />
+            </div>
+            <div class="field image-parameter-field hidden" id="field-image-y">
+              <label for="image-y">Y</label>
+              <input id="image-y" type="number" min="0" placeholder="e.g. 0" />
+            </div>
+
+            <div class="field image-parameter-field hidden" id="field-image-angle">
+              <label for="image-angle">Angle (0-360)</label>
+              <input id="image-angle" type="number" min="0" max="360" placeholder="e.g. 90" />
+            </div>
+
+            <div class="field image-parameter-field hidden" id="field-image-thumbnail-size">
+              <label for="image-thumbnail-size">Thumbnail size</label>
+              <select id="image-thumbnail-size">
+                <option value="">custom width/height</option>
+                <option value="small">small (128x128)</option>
+                <option value="medium">medium (256x256)</option>
+                <option value="large">large (512x512)</option>
+              </select>
+            </div>
+
+            <div class="field image-parameter-field hidden" id="field-image-blur-radius">
+              <label for="image-blur-radius">Blur radius (0-100)</label>
+              <input id="image-blur-radius" type="number" min="0" max="100" placeholder="e.g. 4" />
+            </div>
+
+            <div class="field image-parameter-field hidden" id="field-image-text">
+              <label for="image-text">Text</label>
+              <input id="image-text" type="text" placeholder="e.g. Hello Cloud" />
+            </div>
+            <div class="field image-parameter-field hidden" id="field-image-font-size">
+              <label for="image-font-size">Font size</label>
+              <input id="image-font-size" type="number" min="1" placeholder="e.g. 24" />
+            </div>
+            <div class="field image-parameter-field hidden" id="field-image-font-color">
+              <label for="image-font-color">Font color RGBA</label>
+              <input id="image-font-color" type="text" placeholder="(255,255,255,255)" />
+            </div>
+            <div class="field image-parameter-field hidden" id="field-image-text-x">
+              <label for="image-text-x">Text X</label>
+              <input id="image-text-x" type="number" min="0" placeholder="e.g. 30" />
+            </div>
+            <div class="field image-parameter-field hidden" id="field-image-text-y">
+              <label for="image-text-y">Text Y</label>
+              <input id="image-text-y" type="number" min="0" placeholder="e.g. 40" />
+            </div>
+          </div>
+
+          <div class="image-actions">
+            <button id="image-transform-btn" class="btn-primary" type="button" onclick="transformUploadedImage()">
+              Transform image
+            </button>
+            <span id="image-transform-status" class="small-hint"></span>
+          </div>
+          </div>
+
+          <div id="image-error" class="compress-error"></div>
+
+          <div id="image-preview-wrap" class="image-preview-wrap">
+            <p class="section-label" style="margin-top: 8px;">Output preview</p>
+            <img id="image-preview" alt="Transformed output preview" />
+            <div class="image-links">
+              <a id="image-open-link" class="btn-secondary" href="#" target="_blank" rel="noopener">Open image</a>
+              <a id="image-download-link" class="btn-download" href="#" download>Download image</a>
+            </div>
+            <p id="image-uri-text" class="meta-line"></p>
+          </div>
+        </div>
         </section>
 
         <section id="docs-section" class="docs hidden">
@@ -1082,6 +1286,25 @@
       });
 
       var compressBlobUrl = null;
+      var imageState = {
+        uri: null,
+        url: null,
+      };
+      var imageActionToFields = {
+        grayscale: [],
+        resize: ["width", "height"],
+        rotate: ["angle"],
+        crop: ["x", "y", "width", "height"],
+        thumbnail: ["thumbnail_size", "width", "height"],
+        blur: ["blur_radius"],
+        sharpen: [],
+        contour: [],
+        detail: [],
+        emboss: [],
+        smooth: [],
+        edge_enhance: [],
+        text: ["text", "font_size", "font_color", "angle", "text_x", "text_y"],
+      };
 
       function formatBytes(bytes) {
         if (bytes === null || bytes === undefined || isNaN(bytes)) {
@@ -1275,6 +1498,324 @@
         if (e.target && e.target.id === "compress-file") {
           resetCompressUi();
         }
+        if (e.target && e.target.id === "image-file") {
+          clearImageUi();
+          refreshImageUploadState();
+        }
+        if (e.target && e.target.id === "image-action") {
+          toggleActionParameterFields();
+        }
+      });
+
+      function clearImageUi() {
+        imageState.uri = null;
+        imageState.url = null;
+        var errEl = document.getElementById("image-error");
+        var uploadRow = document.getElementById("image-upload-row");
+        var transformPanel = document.getElementById("image-transform-panel");
+        var previewWrap = document.getElementById("image-preview-wrap");
+        var preview = document.getElementById("image-preview");
+        var openLink = document.getElementById("image-open-link");
+        var downloadLink = document.getElementById("image-download-link");
+        var uploadStatus = document.getElementById("image-upload-status");
+        var transformStatus = document.getElementById("image-transform-status");
+        var uriText = document.getElementById("image-uri-text");
+        if (errEl) {
+          errEl.textContent = "";
+          errEl.classList.remove("visible");
+        }
+        if (uploadRow) {
+          uploadRow.classList.add("hidden");
+        }
+        if (transformPanel) {
+          transformPanel.classList.add("hidden");
+        }
+        if (previewWrap) {
+          previewWrap.classList.remove("visible");
+        }
+        if (preview) {
+          preview.removeAttribute("src");
+        }
+        if (openLink) {
+          openLink.removeAttribute("href");
+        }
+        if (downloadLink) {
+          downloadLink.removeAttribute("href");
+          downloadLink.removeAttribute("download");
+        }
+        if (uploadStatus) {
+          uploadStatus.textContent = "";
+        }
+        if (transformStatus) {
+          transformStatus.textContent = "";
+        }
+        if (uriText) {
+          uriText.textContent = "";
+        }
+        toggleActionParameterFields();
+      }
+
+      function refreshImageUploadState() {
+        var fileInput = document.getElementById("image-file");
+        var uploadRow = document.getElementById("image-upload-row");
+        if (!uploadRow) {
+          return;
+        }
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          uploadRow.classList.remove("hidden");
+        } else {
+          uploadRow.classList.add("hidden");
+        }
+      }
+
+      function showImageTransformPanel() {
+        var panel = document.getElementById("image-transform-panel");
+        if (panel) {
+          panel.classList.remove("hidden");
+        }
+        toggleActionParameterFields();
+      }
+
+      function toggleActionParameterFields() {
+        var actionEl = document.getElementById("image-action");
+        var action = actionEl ? actionEl.value : "grayscale";
+        var fields = imageActionToFields[action] || [];
+        var all = [
+          "width",
+          "height",
+          "x",
+          "y",
+          "angle",
+          "thumbnail_size",
+          "blur_radius",
+          "text",
+          "font_size",
+          "font_color",
+          "text_x",
+          "text_y",
+        ];
+        all.forEach(function (name) {
+          var fieldId = "field-image-" + name.replace(/_/g, "-");
+          var wrap = document.getElementById(fieldId);
+          if (!wrap) {
+            return;
+          }
+          if (fields.indexOf(name) >= 0) {
+            wrap.classList.remove("hidden");
+          } else {
+            wrap.classList.add("hidden");
+          }
+        });
+      }
+
+      function showImageError(message) {
+        var errEl = document.getElementById("image-error");
+        if (!errEl) {
+          return;
+        }
+        errEl.textContent = message || "Image request failed.";
+        errEl.classList.add("visible");
+      }
+
+      function setImagePreview(url, uri, downloadName) {
+        if (!url) {
+          return;
+        }
+        var previewWrap = document.getElementById("image-preview-wrap");
+        var preview = document.getElementById("image-preview");
+        var openLink = document.getElementById("image-open-link");
+        var downloadLink = document.getElementById("image-download-link");
+        var uriText = document.getElementById("image-uri-text");
+        preview.src = url;
+        openLink.href = url;
+        downloadLink.href = url;
+        if (downloadName) {
+          downloadLink.setAttribute("download", downloadName);
+        }
+        if (uri) {
+          uriText.innerHTML = "<strong>Image key:</strong> <code>" + uri + "</code>";
+        } else {
+          uriText.textContent = "";
+        }
+        previewWrap.classList.add("visible");
+      }
+
+      function parseJsonOrThrow(res) {
+        return res.text().then(function (t) {
+          var parsed;
+          try {
+            parsed = JSON.parse(t || "{}");
+          } catch (e) {
+            throw new Error(t || "Unexpected non-JSON response");
+          }
+          if (!res.ok) {
+            throw new Error(parsed.error || parsed.message || t || "Request failed");
+          }
+          return parsed;
+        });
+      }
+
+      function uploadImageToClassmateApi() {
+        var fileInput = document.getElementById("image-file");
+        var uploadBtn = document.getElementById("image-upload-btn");
+        var uploadStatus = document.getElementById("image-upload-status");
+        if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+          alert("Please choose an image first.");
+          return;
+        }
+        uploadBtn.disabled = true;
+        uploadStatus.textContent = "Uploading image...";
+        var errEl = document.getElementById("image-error");
+        if (errEl) {
+          errEl.textContent = "";
+          errEl.classList.remove("visible");
+        }
+
+        var fd = new FormData();
+        fd.append("file", fileInput.files[0]);
+
+        fetch("{{ url_for('image_upload_proxy') }}", { method: "POST", body: fd })
+          .then(parseJsonOrThrow)
+          .then(function (payload) {
+            imageState.uri = payload.uri || null;
+            imageState.url = payload.url || null;
+            uploadStatus.textContent = imageState.uri
+              ? "Upload successful."
+              : "Upload complete, but no URI returned.";
+            if (imageState.uri) {
+              showImageTransformPanel();
+            }
+            if (imageState.url) {
+              setImagePreview(imageState.url, imageState.uri, "uploaded-image");
+            }
+          })
+          .catch(function (err) {
+            uploadStatus.textContent = "";
+            showImageError(err.message || String(err));
+          })
+          .finally(function () {
+            uploadBtn.disabled = false;
+          });
+      }
+
+      function transformUploadedImage() {
+        var transformBtn = document.getElementById("image-transform-btn");
+        var transformStatus = document.getElementById("image-transform-status");
+        var action = (document.getElementById("image-action").value || "").trim();
+        var widthVal = (document.getElementById("image-width").value || "").trim();
+        var heightVal = (document.getElementById("image-height").value || "").trim();
+        var xVal = (document.getElementById("image-x").value || "").trim();
+        var yVal = (document.getElementById("image-y").value || "").trim();
+        var angleVal = (document.getElementById("image-angle").value || "").trim();
+        var thumbSizeVal = (document.getElementById("image-thumbnail-size").value || "").trim();
+        var blurRadiusVal = (document.getElementById("image-blur-radius").value || "").trim();
+        var textVal = (document.getElementById("image-text").value || "").trim();
+        var fontSizeVal = (document.getElementById("image-font-size").value || "").trim();
+        var fontColorVal = (document.getElementById("image-font-color").value || "").trim();
+        var textXVal = (document.getElementById("image-text-x").value || "").trim();
+        var textYVal = (document.getElementById("image-text-y").value || "").trim();
+
+        if (!imageState.uri) {
+          alert("Please upload an image first.");
+          return;
+        }
+        if (!action) {
+          alert("Please choose an action.");
+          return;
+        }
+
+        var params = {};
+        if (action === "resize") {
+          if (!widthVal || !heightVal) {
+            alert("Resize needs width and height.");
+            return;
+          }
+          params.width = Number(widthVal);
+          params.height = Number(heightVal);
+        } else if (action === "rotate") {
+          if (!angleVal) {
+            alert("Rotate needs angle.");
+            return;
+          }
+          params.angle = Number(angleVal);
+        } else if (action === "crop") {
+          if (!xVal || !yVal || !widthVal || !heightVal) {
+            alert("Crop needs x, y, width, and height.");
+            return;
+          }
+          params.x = Number(xVal);
+          params.y = Number(yVal);
+          params.width = Number(widthVal);
+          params.height = Number(heightVal);
+        } else if (action === "thumbnail") {
+          if (thumbSizeVal) {
+            params.thumbnail_size = thumbSizeVal;
+          } else {
+            if (!widthVal || !heightVal) {
+              alert("Thumbnail needs thumbnail_size OR width + height.");
+              return;
+            }
+            params.width = Number(widthVal);
+            params.height = Number(heightVal);
+          }
+        } else if (action === "blur") {
+          if (!blurRadiusVal) {
+            alert("Blur needs blur_radius.");
+            return;
+          }
+          params.blur_radius = Number(blurRadiusVal);
+        } else if (action === "text") {
+          if (!textVal || !fontSizeVal || !fontColorVal || !textXVal || !textYVal) {
+            alert("Text action needs text, font_size, font_color, text_x, and text_y.");
+            return;
+          }
+          params.text = textVal;
+          params.font_size = Number(fontSizeVal);
+          params.font_color = fontColorVal;
+          params.text_x = Number(textXVal);
+          params.text_y = Number(textYVal);
+          if (angleVal) {
+            params.angle = Number(angleVal);
+          }
+        }
+
+        var body = {
+          uri: imageState.uri,
+          action: action,
+        };
+        if (Object.keys(params).length) {
+          body.parameters = params;
+        }
+
+        transformBtn.disabled = true;
+        transformStatus.textContent = "Applying transform...";
+
+        fetch("{{ url_for('image_transform_proxy') }}", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then(parseJsonOrThrow)
+          .then(function (payload) {
+            imageState.uri = payload.uri || imageState.uri;
+            imageState.url = payload.url || imageState.url;
+            transformStatus.textContent = "Transform completed.";
+            if (imageState.url) {
+              setImagePreview(imageState.url, imageState.uri, "transformed-image");
+            }
+          })
+          .catch(function (err) {
+            transformStatus.textContent = "";
+            showImageError(err.message || String(err));
+          })
+          .finally(function () {
+            transformBtn.disabled = false;
+          });
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        toggleActionParameterFields();
+        refreshImageUploadState();
       });
     </script>
   </body>

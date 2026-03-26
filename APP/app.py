@@ -1,7 +1,8 @@
 import os
+from urllib.parse import quote
 
 import requests
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
 app = Flask(__name__)
 
@@ -19,6 +20,45 @@ COMPRESS_API_URL = os.getenv(
 )
 # Multipart field name expected by the upstream API (ask your friend if uploads fail)
 COMPRESS_FILE_FIELD = os.getenv("COMPRESS_FILE_FIELD", "file")
+IMAGE_API_BASE_URL = os.getenv(
+    "IMAGE_API_BASE_URL",
+    "https://n3vdm98ezc.execute-api.us-east-1.amazonaws.com",
+)
+IMAGE_PUBLIC_BASE_URL = os.getenv(
+    "IMAGE_PUBLIC_BASE_URL",
+    "http://image-core-cloud.s3-website-us-east-1.amazonaws.com",
+)
+
+
+def _extract_image_uri(payload: dict) -> str | None:
+    """Extract a likely image object key from upstream payload."""
+    if not isinstance(payload, dict):
+        return None
+    candidates = (
+        payload.get("uri"),
+        payload.get("key"),
+        payload.get("path"),
+        payload.get("s3Key"),
+        payload.get("objectKey"),
+        payload.get("imageKey"),
+        payload.get("outputKey"),
+    )
+    for c in candidates:
+        if isinstance(c, str) and c.strip():
+            return c.strip()
+    return None
+
+
+def _build_public_image_url(uri: str | None) -> str | None:
+    if not uri:
+        return None
+    if uri.startswith("http://") or uri.startswith("https://"):
+        return uri
+    base = IMAGE_PUBLIC_BASE_URL.rstrip("/")
+    cleaned = uri.lstrip("/")
+    # Keep / separators while escaping special chars in each segment.
+    encoded = "/".join(quote(seg) for seg in cleaned.split("/"))
+    return f"{base}/{encoded}"
 
 
 def call_scaleapp_nearby(lat: float, lon: float, place_type: str, radius_m: int) -> dict | None:
@@ -109,6 +149,95 @@ def compress_proxy():
             f'attachment; filename="compressed_{base}.{ext}"'
         )
     return out
+
+
+@app.route("/image/upload", methods=["POST"])
+def image_upload_proxy():
+    """Upload image file to classmate image API and return parsed metadata."""
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return {"error": "No image file uploaded"}, 400
+
+    files = {"file": (f.filename, f.stream, f.mimetype or "application/octet-stream")}
+    try:
+        upstream = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/upload",
+            files=files,
+            timeout=180,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image upload upstream failed: {exc!s}"}, 502
+
+    try:
+        payload = upstream.json()
+    except Exception:
+        payload = {"raw": upstream.text[:2000] if upstream.text else ""}
+
+    if upstream.status_code >= 400:
+        return payload, upstream.status_code
+
+    uri = _extract_image_uri(payload)
+    url = payload.get("url") if isinstance(payload, dict) else None
+    if not isinstance(url, str) or not url.strip():
+        url = _build_public_image_url(uri)
+
+    return jsonify(
+        {
+            "ok": True,
+            "uri": uri,
+            "url": url,
+            "upstream": payload,
+        }
+    )
+
+
+@app.route("/image/transform", methods=["POST"])
+def image_transform_proxy():
+    """Call classmate transform API and return transformed image metadata."""
+    body = request.get_json(silent=True) or {}
+    uri = str(body.get("uri", "")).strip()
+    action = str(body.get("action", "")).strip()
+    parameters = body.get("parameters")
+
+    if not uri:
+        return {"error": "uri is required"}, 400
+    if not action:
+        return {"error": "action is required"}, 400
+
+    upstream_payload: dict = {"uri": uri, "action": action}
+    if isinstance(parameters, dict) and parameters:
+        upstream_payload["parameters"] = parameters
+
+    try:
+        upstream = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
+            json=upstream_payload,
+            timeout=240,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image transform upstream failed: {exc!s}"}, 502
+
+    try:
+        payload = upstream.json()
+    except Exception:
+        payload = {"raw": upstream.text[:2000] if upstream.text else ""}
+
+    if upstream.status_code >= 400:
+        return payload, upstream.status_code
+
+    transformed_uri = _extract_image_uri(payload) or uri
+    transformed_url = payload.get("url") if isinstance(payload, dict) else None
+    if not isinstance(transformed_url, str) or not transformed_url.strip():
+        transformed_url = _build_public_image_url(transformed_uri)
+
+    return jsonify(
+        {
+            "ok": True,
+            "uri": transformed_uri,
+            "url": transformed_url,
+            "upstream": payload,
+        }
+    )
 
 
 @app.route("/", methods=["GET", "POST"])
