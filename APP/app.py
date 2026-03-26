@@ -353,6 +353,7 @@ def index():
     error_message: str | None = None
     nearby_data: dict | None = None
     reverse_geo: dict | None = None
+    active_tab = request.args.get("tab", "planner")
 
     lat_str = ""
     lon_str = ""
@@ -360,6 +361,7 @@ def index():
     radius_str = "1.0"
 
     if request.method == "POST":
+        active_tab = "playground"
         lat_str = request.form.get("lat", "").strip()
         lon_str = request.form.get("lon", "").strip()
         place_type = request.form.get("type", "cafe").strip() or "cafe"
@@ -394,6 +396,7 @@ def index():
         place_type=place_type,
         radius=radius_str,
         scaleapp_base_url=SCALEAPP_BASE_URL,
+        active_tab=active_tab,
     )
 
 

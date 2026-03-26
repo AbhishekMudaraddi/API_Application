@@ -1296,7 +1296,7 @@
           typeInput.value = "cafe";
         }
 
-        window.location.href = "{{ url_for('index') }}";
+        window.location.href = "{{ url_for('index', tab='playground') }}";
       }
 
       function plannerSetStatus(msg) {
@@ -1474,6 +1474,10 @@
           pageSubtitle.textContent = "Test and explore application features powered by your API, classmate APIs, and public APIs.";
         }
       }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        showTab("{{ active_tab or 'planner' }}");
+      });
 
       document.addEventListener("DOMContentLoaded", function () {
         var mapDiv = document.getElementById("map");
