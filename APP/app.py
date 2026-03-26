@@ -338,7 +338,15 @@ def planner_nearby():
     if not GOOGLE_PLACES_API_KEY:
         return {"error": "Planner image search requires GOOGLE_PLACES_API_KEY in APP environment."}, 500
 
-    nearby_data = {"places": places}
+    # Fetch weather from your API so Planner can show it too.
+    weather = None
+    scaleapp_payload = call_scaleapp_nearby(lat_f, lon_f, place_type, 2000)
+    if isinstance(scaleapp_payload, dict):
+        maybe_weather = scaleapp_payload.get("weather")
+        if isinstance(maybe_weather, dict):
+            weather = maybe_weather
+
+    nearby_data = {"places": places, "weather": weather}
     reverse_geo = call_reverse_geocode(lat_f, lon_f)
 
     return jsonify(
@@ -729,6 +737,7 @@ def planner_generate_pdf():
     places = body.get("places") or []
     search_type = str(body.get("searchType", "")).strip()
     location_label = str(body.get("locationLabel", "")).strip()
+    weather = body.get("weather")
 
     if not isinstance(places, list) or not places:
         return {"error": "places is required"}, 400
@@ -748,6 +757,11 @@ def planner_generate_pdf():
         y -= 16
     if location_label:
         pdf.drawString(margin_x, y, f"Location: {location_label}")
+        y -= 16
+    if isinstance(weather, dict):
+        w_temp = weather.get("temperature", "N/A")
+        w_desc = weather.get("description", "N/A")
+        pdf.drawString(margin_x, y, f"Weather: {w_temp} C, {w_desc}")
         y -= 16
     y -= 8
 

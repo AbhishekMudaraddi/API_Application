@@ -926,6 +926,7 @@
             <div id="planner-error" class="planner-error"></div>
 
             <div id="planner-results" class="planner-results hidden">
+              <div id="planner-weather-pill" class="info-pill hidden"></div>
               <p class="section-label">Top nearby places</p>
               <ul id="planner-places-list" class="places-list"></ul>
               <div id="planner-location-card" class="location-card hidden"></div>
@@ -1544,6 +1545,7 @@
       var plannerMap = null;
       var plannerPlaces = [];
       var plannerOriginalPlaces = [];
+      var plannerWeather = null;
 
       function plannerToggleOperationFields() {
         var action = (document.getElementById("planner-op-action") || {}).value || "grayscale";
@@ -1697,9 +1699,11 @@
         var wrap = document.getElementById("planner-results");
         var list = document.getElementById("planner-places-list");
         var locationCard = document.getElementById("planner-location-card");
+        var weatherPill = document.getElementById("planner-weather-pill");
         var input = (data && data.input) || {};
         var nearby = (data && data.nearby) || {};
         var places = nearby.places || [];
+        plannerWeather = nearby.weather || null;
         plannerPlaces = places.slice();
         plannerOriginalPlaces = places.map(function (p) {
           return Object.assign({}, p);
@@ -1732,6 +1736,21 @@
           });
         }
         list.innerHTML = html;
+
+        if (weatherPill) {
+          if (plannerWeather && (plannerWeather.temperature !== undefined || plannerWeather.description)) {
+            weatherPill.classList.remove("hidden");
+            weatherPill.innerHTML =
+              "<span>Weather:</span> <strong>" +
+              (plannerWeather.temperature ?? "N/A") +
+              " C</strong> <span>" +
+              (plannerWeather.description || "N/A") +
+              "</span>";
+          } else {
+            weatherPill.classList.add("hidden");
+            weatherPill.innerHTML = "";
+          }
+        }
 
         var geo = data && data.reverseGeo;
         if (geo) {
@@ -1969,6 +1988,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               places: plannerPlaces,
+              weather: plannerWeather,
               searchType: (document.getElementById("planner-type").value || "").trim(),
               locationLabel: locationText,
             }),
