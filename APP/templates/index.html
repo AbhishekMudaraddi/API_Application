@@ -747,6 +747,13 @@
         margin-top: 14px;
       }
 
+      #planner-map {
+        margin-top: 10px;
+        height: 260px;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+      }
+
       .planner-results .places-list {
         gap: 12px;
       }
@@ -857,6 +864,10 @@
               <p class="section-label">Top nearby places</p>
               <ul id="planner-places-list" class="places-list"></ul>
               <div id="planner-location-card" class="location-card hidden"></div>
+              <p class="section-label">Map view</p>
+              <div id="planner-map-wrap" class="hidden">
+                <div id="planner-map"></div>
+              </div>
             </div>
 
           </div>
@@ -1347,10 +1358,73 @@
         }
       }
 
+      var plannerMap = null;
+
+      function renderPlannerMap(currentLat, currentLon, places) {
+        var mapWrap = document.getElementById("planner-map-wrap");
+        var mapDiv = document.getElementById("planner-map");
+        if (!mapWrap || !mapDiv || typeof L === "undefined") {
+          return;
+        }
+        if (typeof currentLat !== "number" || typeof currentLon !== "number") {
+          mapWrap.classList.add("hidden");
+          return;
+        }
+
+        mapWrap.classList.remove("hidden");
+        if (plannerMap) {
+          plannerMap.remove();
+          plannerMap = null;
+        }
+
+        plannerMap = L.map("planner-map").setView([currentLat, currentLon], 14);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(plannerMap);
+
+        var blueIcon = L.icon({
+          iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+          shadowSize: [41, 41],
+        });
+
+        var redIcon = L.icon({
+          iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+          iconSize: [25, 41],
+          iconAnchor: [12, 41],
+          popupAnchor: [1, -34],
+          shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+          shadowSize: [41, 41],
+        });
+
+        var bounds = L.latLngBounds([[currentLat, currentLon]]);
+        L.marker([currentLat, currentLon], { icon: blueIcon })
+          .addTo(plannerMap)
+          .bindPopup("Your current location");
+
+        (places || []).forEach(function (p) {
+          if (typeof p.lat === "number" && typeof p.lon === "number") {
+            L.marker([p.lat, p.lon], { icon: redIcon })
+              .addTo(plannerMap)
+              .bindPopup(p.name || "Place");
+            bounds.extend([p.lat, p.lon]);
+          }
+        });
+
+        if (bounds.isValid()) {
+          plannerMap.fitBounds(bounds, { padding: [25, 25] });
+        }
+      }
+
       function plannerRender(data) {
         var wrap = document.getElementById("planner-results");
         var list = document.getElementById("planner-places-list");
         var locationCard = document.getElementById("planner-location-card");
+        var input = (data && data.input) || {};
         var nearby = (data && data.nearby) || {};
         var places = nearby.places || [];
         var html = "";
@@ -1400,6 +1474,7 @@
           locationCard.innerHTML = "";
         }
 
+        renderPlannerMap(input.lat, input.lon, places);
         wrap.classList.remove("hidden");
       }
 
