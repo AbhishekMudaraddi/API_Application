@@ -787,6 +787,13 @@
         padding: 16px;
       }
 
+      .planner-pdf-result-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
       .planner-op-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1006,8 +1013,35 @@
                     Revert to original images
                   </button>
                   <button id="planner-download-pdf-btn" class="btn-primary" type="button" onclick="plannerDownloadCompressedPdf()">
-                    Download compressed PDF
+                    Generate original + compressed PDFs
                   </button>
+                </div>
+
+                <div id="planner-pdf-inline-wrap" class="compress-steps-wrap hidden" style="margin-top: 10px;">
+                  <p class="compress-steps-title">PDF generation steps</p>
+                  <p id="planner-pdf-status" class="compress-status"></p>
+                  <ol class="compress-steps">
+                    <li class="compress-step pending" id="planner-pdf-step-1">
+                      <span class="compress-step-icon" aria-hidden="true"></span>
+                      <span class="compress-step-label">Collect current planner results and images</span>
+                    </li>
+                    <li class="compress-step pending" id="planner-pdf-step-2">
+                      <span class="compress-step-icon" aria-hidden="true"></span>
+                      <span class="compress-step-label">Generate original PDF on Flask backend</span>
+                    </li>
+                    <li class="compress-step pending" id="planner-pdf-step-3">
+                      <span class="compress-step-icon" aria-hidden="true"></span>
+                      <span class="compress-step-label">Compress PDF via classmate API</span>
+                    </li>
+                    <li class="compress-step pending" id="planner-pdf-step-4">
+                      <span class="compress-step-icon" aria-hidden="true"></span>
+                      <span class="compress-step-label">Provide both download files</span>
+                    </li>
+                  </ol>
+                  <div id="planner-pdf-links" class="planner-pdf-result-links hidden">
+                    <a id="planner-original-pdf-link" class="btn-download" href="#" download="planner-results-original.pdf">Download original PDF</a>
+                    <a id="planner-compressed-pdf-link" class="btn-download" href="#" download="planner-results-compressed.pdf">Download compressed PDF</a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1443,33 +1477,6 @@
       </main>
     </div>
 
-    <div id="planner-pdf-modal" class="planner-pdf-modal" role="dialog" aria-modal="true" aria-labelledby="planner-pdf-title">
-      <div class="planner-pdf-modal-card">
-        <h3 id="planner-pdf-title" class="card-title" style="margin: 0 0 8px;">Preparing your compressed planner PDF</h3>
-        <p id="planner-pdf-status" class="compress-status">Starting...</p>
-        <div id="planner-pdf-steps-wrap" class="compress-steps-wrap">
-          <ol class="compress-steps">
-            <li class="compress-step pending" id="planner-pdf-step-1">
-              <span class="compress-step-icon" aria-hidden="true"></span>
-              <span class="compress-step-label">Collect current planner results and images</span>
-            </li>
-            <li class="compress-step pending" id="planner-pdf-step-2">
-              <span class="compress-step-icon" aria-hidden="true"></span>
-              <span class="compress-step-label">Generate planner PDF on Flask backend</span>
-            </li>
-            <li class="compress-step pending" id="planner-pdf-step-3">
-              <span class="compress-step-icon" aria-hidden="true"></span>
-              <span class="compress-step-label">Compress PDF via classmate API</span>
-            </li>
-            <li class="compress-step pending" id="planner-pdf-step-4">
-              <span class="compress-step-icon" aria-hidden="true"></span>
-              <span class="compress-step-label">Download compressed PDF</span>
-            </li>
-          </ol>
-        </div>
-      </div>
-    </div>
-
     <script>
       function useCurrentLocation() {
         if (!navigator.geolocation) {
@@ -1849,13 +1856,13 @@
         }
       }
 
-      function showPlannerPdfModal(show) {
-        var modal = document.getElementById("planner-pdf-modal");
-        if (!modal) return;
+      function showPlannerPdfInline(show) {
+        var wrap = document.getElementById("planner-pdf-inline-wrap");
+        if (!wrap) return;
         if (show) {
-          modal.classList.add("visible");
+          wrap.classList.remove("hidden");
         } else {
-          modal.classList.remove("visible");
+          wrap.classList.add("hidden");
         }
       }
 
@@ -1863,6 +1870,9 @@
         var btn = document.getElementById("planner-download-pdf-btn");
         var statusEl = document.getElementById("planner-pdf-status");
         var locationCard = document.getElementById("planner-location-card");
+        var linksWrap = document.getElementById("planner-pdf-links");
+        var originalLink = document.getElementById("planner-original-pdf-link");
+        var compressedLink = document.getElementById("planner-compressed-pdf-link");
 
         if (!plannerPlaces.length) {
           plannerSetError("No planner results to export.");
@@ -1872,7 +1882,16 @@
         plannerSetError("");
         btn.disabled = true;
         resetPlannerPdfSteps();
-        showPlannerPdfModal(true);
+        showPlannerPdfInline(true);
+        if (linksWrap) {
+          linksWrap.classList.add("hidden");
+        }
+        if (originalLink) {
+          originalLink.removeAttribute("href");
+        }
+        if (compressedLink) {
+          compressedLink.removeAttribute("href");
+        }
 
         try {
           setPlannerPdfStep(1, "active");
@@ -1881,8 +1900,8 @@
           setPlannerPdfStep(1, "done");
           setPlannerPdfStep(2, "active");
 
-          statusEl.textContent = "Generating PDF and compressing it...";
-          const res = await fetch("{{ url_for('planner_download_compressed_pdf') }}", {
+          statusEl.textContent = "Generating original PDF...";
+          const originalRes = await fetch("{{ url_for('planner_generate_pdf') }}", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -1892,8 +1911,8 @@
             }),
           });
 
-          if (!res.ok) {
-            const txt = await res.text();
+          if (!originalRes.ok) {
+            const txt = await originalRes.text();
             let payload = {};
             try {
               payload = JSON.parse(txt || "{}");
@@ -1902,33 +1921,48 @@
             }
             throw new Error(payload.error || payload.message || "PDF generation failed");
           }
+          const originalBlob = await originalRes.blob();
+          const originalBlobUrl = URL.createObjectURL(originalBlob);
+          if (originalLink) {
+            originalLink.href = originalBlobUrl;
+          }
 
           setPlannerPdfStep(2, "done");
           setPlannerPdfStep(3, "active");
-          setPlannerPdfStep(3, "done");
-          setPlannerPdfStep(4, "active");
 
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = "planner-results-compressed.pdf";
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(blobUrl);
+          statusEl.textContent = "Compressing PDF via classmate API...";
+          var fd = new FormData();
+          fd.append("file", originalBlob, "planner-results-original.pdf");
+          const compressedRes = await fetch("{{ url_for('compress_proxy') }}", {
+            method: "POST",
+            body: fd,
+          });
+          if (!compressedRes.ok) {
+            const txt = await compressedRes.text();
+            let payload = {};
+            try {
+              payload = JSON.parse(txt || "{}");
+            } catch (ignore) {
+              throw new Error(txt || "PDF compression failed");
+            }
+            throw new Error(payload.error || payload.message || "PDF compression failed");
+          }
+          const compressedBlob = await compressedRes.blob();
+          const compressedBlobUrl = URL.createObjectURL(compressedBlob);
+          if (compressedLink) {
+            compressedLink.href = compressedBlobUrl;
+          }
+
+          setPlannerPdfStep(3, "done");
 
           setPlannerPdfStep(4, "done");
-          statusEl.textContent = "Done. Download started.";
-          setTimeout(function () {
-            showPlannerPdfModal(false);
-          }, 1200);
+          statusEl.textContent = "Done. Use the buttons below to download original and compressed PDFs.";
+          if (linksWrap) {
+            linksWrap.classList.remove("hidden");
+          }
         } catch (err) {
           statusEl.textContent = "Failed.";
           plannerSetError(err.message || String(err));
-          setTimeout(function () {
-            showPlannerPdfModal(false);
-          }, 800);
         } finally {
           btn.disabled = false;
         }
