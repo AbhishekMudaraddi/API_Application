@@ -747,6 +747,10 @@
         margin-top: 14px;
       }
 
+      .planner-plan-actions {
+        margin-top: 12px;
+      }
+
       #planner-map {
         margin-top: 10px;
         height: 260px;
@@ -867,6 +871,11 @@
               <p class="section-label">Map view</p>
               <div id="planner-map-wrap" class="hidden">
                 <div id="planner-map"></div>
+              </div>
+              <div class="planner-plan-actions">
+                <button id="planner-plan-btn" class="btn-primary" type="button" onclick="plannerAddRatingAndDownloadPlan()">
+                  Add rating and download the plan
+                </button>
               </div>
             </div>
 
@@ -1359,6 +1368,7 @@
       }
 
       var plannerMap = null;
+      var plannerPlaces = [];
 
       function renderPlannerMap(currentLat, currentLon, places) {
         var mapWrap = document.getElementById("planner-map-wrap");
@@ -1434,17 +1444,18 @@
         var input = (data && data.input) || {};
         var nearby = (data && data.nearby) || {};
         var places = nearby.places || [];
+        plannerPlaces = places.slice();
         var html = "";
 
         if (!places.length) {
           html = '<li class="empty">No nearby places found for this search.</li>';
         } else {
-          places.forEach(function (p) {
+          places.forEach(function (p, idx) {
             var imageBlock = "";
             if (p.imageUrl) {
               imageBlock =
                 '<div class="planner-image">' +
-                  '<img src="' + p.imageUrl + '" alt="' + (p.name || "Place") + ' image" loading="lazy" />' +
+                  '<img id="planner-place-img-' + idx + '" src="' + p.imageUrl + '" alt="' + (p.name || "Place") + ' image" loading="lazy" />' +
                 "</div>";
             }
             html +=
@@ -1483,6 +1494,59 @@
 
         renderPlannerMap(input.lat, input.lon, places);
         wrap.classList.remove("hidden");
+      }
+
+      async function plannerAddRatingAndDownloadPlan() {
+        var btn = document.getElementById("planner-plan-btn");
+        if (!plannerPlaces.length) {
+          plannerSetError("No planner results available yet.");
+          return;
+        }
+
+        plannerSetError("");
+        btn.disabled = true;
+        plannerSetStatus("Processing images with rating and distance...");
+
+        for (let i = 0; i < plannerPlaces.length; i++) {
+          const p = plannerPlaces[i];
+          if (!p.imageUrl) {
+            continue;
+          }
+          plannerSetStatus("Processing image " + (i + 1) + " of " + plannerPlaces.length + "...");
+          try {
+            const res = await fetch("{{ url_for('planner_annotate_image') }}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                imageUrl: p.imageUrl,
+                rating: p.rating,
+                distanceMeters: p.distanceMeters,
+              }),
+            });
+            const text = await res.text();
+            let payload = {};
+            try {
+              payload = JSON.parse(text || "{}");
+            } catch (e) {
+              throw new Error(text || "Unexpected response");
+            }
+            if (!res.ok) {
+              throw new Error(payload.error || payload.message || "Image annotation failed");
+            }
+            if (payload.url) {
+              plannerPlaces[i].imageUrl = payload.url;
+              var img = document.getElementById("planner-place-img-" + i);
+              if (img) {
+                img.src = payload.url;
+              }
+            }
+          } catch (err) {
+            plannerSetError("Some images could not be processed: " + (err.message || String(err)));
+          }
+        }
+
+        plannerSetStatus("Plan images updated with rating and distance.");
+        btn.disabled = false;
       }
 
       function plannerSearchNearby() {
