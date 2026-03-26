@@ -785,34 +785,6 @@
         display: block;
       }
 
-      .planner-image-ops {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px dashed var(--border-subtle);
-      }
-
-      .planner-image-ops.hidden {
-        display: none;
-      }
-
-      .planner-op-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      @media (max-width: 760px) {
-        .planner-op-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
-      .planner-place-img-status {
-        margin-top: 6px;
-        font-size: 11px;
-        color: var(--text-muted);
-      }
-
       .hidden {
         display: none;
       }
@@ -887,89 +859,6 @@
               <div id="planner-location-card" class="location-card hidden"></div>
             </div>
 
-            <div id="planner-image-ops" class="planner-image-ops hidden">
-              <p class="section-label">Apply operation to all shown images</p>
-              <div class="planner-op-grid" style="margin-bottom: 10px;">
-                <div class="field">
-                  <label for="planner-op-action">Action</label>
-                  <select id="planner-op-action">
-                    <option value="grayscale">grayscale</option>
-                    <option value="resize">resize</option>
-                    <option value="rotate">rotate</option>
-                    <option value="crop">crop</option>
-                    <option value="thumbnail">thumbnail</option>
-                    <option value="blur">blur</option>
-                    <option value="sharpen">sharpen</option>
-                    <option value="contour">contour</option>
-                    <option value="detail">detail</option>
-                    <option value="emboss">emboss</option>
-                    <option value="smooth">smooth</option>
-                    <option value="edge_enhance">edge_enhance</option>
-                    <option value="text">text</option>
-                  </select>
-                </div>
-
-                <div class="field hidden" id="planner-op-field-width">
-                  <label for="planner-op-width">Width</label>
-                  <input id="planner-op-width" type="number" min="1" placeholder="e.g. 400" />
-                </div>
-                <div class="field hidden" id="planner-op-field-height">
-                  <label for="planner-op-height">Height</label>
-                  <input id="planner-op-height" type="number" min="1" placeholder="e.g. 300" />
-                </div>
-                <div class="field hidden" id="planner-op-field-x">
-                  <label for="planner-op-x">X</label>
-                  <input id="planner-op-x" type="number" min="0" placeholder="e.g. 0" />
-                </div>
-                <div class="field hidden" id="planner-op-field-y">
-                  <label for="planner-op-y">Y</label>
-                  <input id="planner-op-y" type="number" min="0" placeholder="e.g. 0" />
-                </div>
-                <div class="field hidden" id="planner-op-field-angle">
-                  <label for="planner-op-angle">Angle (0-360)</label>
-                  <input id="planner-op-angle" type="number" min="0" max="360" placeholder="e.g. 90" />
-                </div>
-                <div class="field hidden" id="planner-op-field-thumbnail-size">
-                  <label for="planner-op-thumbnail-size">Thumbnail size</label>
-                  <select id="planner-op-thumbnail-size">
-                    <option value="">custom width/height</option>
-                    <option value="small">small (128x128)</option>
-                    <option value="medium">medium (256x256)</option>
-                    <option value="large">large (512x512)</option>
-                  </select>
-                </div>
-                <div class="field hidden" id="planner-op-field-blur-radius">
-                  <label for="planner-op-blur-radius">Blur radius (0-100)</label>
-                  <input id="planner-op-blur-radius" type="number" min="0" max="100" placeholder="e.g. 4" />
-                </div>
-                <div class="field hidden" id="planner-op-field-text">
-                  <label for="planner-op-text">Text</label>
-                  <input id="planner-op-text" type="text" placeholder="e.g. Nice place" />
-                </div>
-                <div class="field hidden" id="planner-op-field-font-size">
-                  <label for="planner-op-font-size">Font size</label>
-                  <input id="planner-op-font-size" type="number" min="1" placeholder="e.g. 20" />
-                </div>
-                <div class="field hidden" id="planner-op-field-font-color">
-                  <label for="planner-op-font-color">Font color RGBA</label>
-                  <input id="planner-op-font-color" type="text" placeholder="(255,255,255,255)" />
-                </div>
-                <div class="field hidden" id="planner-op-field-text-x">
-                  <label for="planner-op-text-x">Text X</label>
-                  <input id="planner-op-text-x" type="number" min="0" placeholder="e.g. 20" />
-                </div>
-                <div class="field hidden" id="planner-op-field-text-y">
-                  <label for="planner-op-text-y">Text Y</label>
-                  <input id="planner-op-text-y" type="number" min="0" placeholder="e.g. 30" />
-                </div>
-              </div>
-
-              <div class="actions">
-                <button id="planner-apply-op-btn" class="btn-primary" type="button" onclick="plannerApplyOperationToAll()">
-                  Apply to all images
-                </button>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -1458,109 +1347,23 @@
         }
       }
 
-      var plannerPlaces = [];
-
-      function plannerToggleOperationFields() {
-        var action = (document.getElementById("planner-op-action") || {}).value || "grayscale";
-        var fields = imageActionToFields[action] || [];
-        var all = [
-          "width",
-          "height",
-          "x",
-          "y",
-          "angle",
-          "thumbnail_size",
-          "blur_radius",
-          "text",
-          "font_size",
-          "font_color",
-          "text_x",
-          "text_y",
-        ];
-        all.forEach(function (name) {
-          var el = document.getElementById("planner-op-field-" + name.replace(/_/g, "-"));
-          if (!el) return;
-          if (fields.indexOf(name) >= 0) {
-            el.classList.remove("hidden");
-          } else {
-            el.classList.add("hidden");
-          }
-        });
-      }
-
-      function plannerCollectOperationParams(action) {
-        var widthVal = (document.getElementById("planner-op-width").value || "").trim();
-        var heightVal = (document.getElementById("planner-op-height").value || "").trim();
-        var xVal = (document.getElementById("planner-op-x").value || "").trim();
-        var yVal = (document.getElementById("planner-op-y").value || "").trim();
-        var angleVal = (document.getElementById("planner-op-angle").value || "").trim();
-        var thumbSizeVal = (document.getElementById("planner-op-thumbnail-size").value || "").trim();
-        var blurRadiusVal = (document.getElementById("planner-op-blur-radius").value || "").trim();
-        var textVal = (document.getElementById("planner-op-text").value || "").trim();
-        var fontSizeVal = (document.getElementById("planner-op-font-size").value || "").trim();
-        var fontColorVal = (document.getElementById("planner-op-font-color").value || "").trim();
-        var textXVal = (document.getElementById("planner-op-text-x").value || "").trim();
-        var textYVal = (document.getElementById("planner-op-text-y").value || "").trim();
-
-        var params = {};
-        if (action === "resize") {
-          if (!widthVal || !heightVal) throw new Error("Resize needs width and height.");
-          params.width = Number(widthVal);
-          params.height = Number(heightVal);
-        } else if (action === "rotate") {
-          if (!angleVal) throw new Error("Rotate needs angle.");
-          params.angle = Number(angleVal);
-        } else if (action === "crop") {
-          if (!xVal || !yVal || !widthVal || !heightVal) throw new Error("Crop needs x, y, width, and height.");
-          params.x = Number(xVal);
-          params.y = Number(yVal);
-          params.width = Number(widthVal);
-          params.height = Number(heightVal);
-        } else if (action === "thumbnail") {
-          if (thumbSizeVal) {
-            params.thumbnail_size = thumbSizeVal;
-          } else {
-            if (!widthVal || !heightVal) throw new Error("Thumbnail needs thumbnail_size OR width + height.");
-            params.width = Number(widthVal);
-            params.height = Number(heightVal);
-          }
-        } else if (action === "blur") {
-          if (!blurRadiusVal) throw new Error("Blur needs blur_radius.");
-          params.blur_radius = Number(blurRadiusVal);
-        } else if (action === "text") {
-          if (!textVal || !fontSizeVal || !fontColorVal || !textXVal || !textYVal) {
-            throw new Error("Text action needs text, font_size, font_color, text_x, and text_y.");
-          }
-          params.text = textVal;
-          params.font_size = Number(fontSizeVal);
-          params.font_color = fontColorVal;
-          params.text_x = Number(textXVal);
-          params.text_y = Number(textYVal);
-          if (angleVal) params.angle = Number(angleVal);
-        }
-        return params;
-      }
-
       function plannerRender(data) {
         var wrap = document.getElementById("planner-results");
         var list = document.getElementById("planner-places-list");
         var locationCard = document.getElementById("planner-location-card");
-        var opsPanel = document.getElementById("planner-image-ops");
         var nearby = (data && data.nearby) || {};
         var places = nearby.places || [];
-        plannerPlaces = places.slice();
         var html = "";
 
         if (!places.length) {
           html = '<li class="empty">No nearby places found for this search.</li>';
         } else {
-          places.forEach(function (p, idx) {
+          places.forEach(function (p) {
             var imageBlock = "";
             if (p.imageUrl) {
               imageBlock =
                 '<div class="planner-image">' +
-                  '<img id="planner-place-img-' + idx + '" src="' + p.imageUrl + '" alt="' + (p.name || "Place") + ' image" loading="lazy" />' +
-                  '<p id="planner-place-status-' + idx + '" class="planner-place-img-status"></p>' +
+                  '<img src="' + p.imageUrl + '" alt="' + (p.name || "Place") + ' image" loading="lazy" />' +
                 "</div>";
             }
             html +=
@@ -1578,13 +1381,6 @@
           });
         }
         list.innerHTML = html;
-        if (opsPanel) {
-          if (places.length > 0) {
-            opsPanel.classList.remove("hidden");
-          } else {
-            opsPanel.classList.add("hidden");
-          }
-        }
 
         var geo = data && data.reverseGeo;
         if (geo) {
@@ -1605,77 +1401,6 @@
         }
 
         wrap.classList.remove("hidden");
-      }
-
-      async function plannerApplyOperationToAll() {
-        var btn = document.getElementById("planner-apply-op-btn");
-        var action = (document.getElementById("planner-op-action").value || "").trim();
-        if (!plannerPlaces.length) {
-          plannerSetError("No planner results to process yet.");
-          return;
-        }
-        if (!action) {
-          plannerSetError("Please choose an operation.");
-          return;
-        }
-
-        let params = {};
-        try {
-          params = plannerCollectOperationParams(action);
-        } catch (e) {
-          plannerSetError(e.message || String(e));
-          return;
-        }
-
-        plannerSetError("");
-        btn.disabled = true;
-        plannerSetStatus("Uploading and transforming planner images...");
-
-        for (let i = 0; i < plannerPlaces.length; i++) {
-          const place = plannerPlaces[i];
-          const statusEl = document.getElementById("planner-place-status-" + i);
-          if (!place.imageUrl) {
-            if (statusEl) statusEl.textContent = "Skipped: no image.";
-            continue;
-          }
-          if (statusEl) statusEl.textContent = "Processing...";
-
-          try {
-            const res = await fetch("{{ url_for('planner_process_image') }}", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                imageUrl: place.imageUrl,
-                action: action,
-                parameters: params,
-              }),
-            });
-            const text = await res.text();
-            let payload = {};
-            try {
-              payload = JSON.parse(text || "{}");
-            } catch (e) {
-              throw new Error(text || "Invalid transform response");
-            }
-            if (!res.ok) {
-              throw new Error(payload.error || payload.message || "Transform failed");
-            }
-            if (!payload.url) {
-              throw new Error("Transform returned no image URL");
-            }
-            plannerPlaces[i].imageUrl = payload.url;
-            const imgEl = document.getElementById("planner-place-img-" + i);
-            if (imgEl) {
-              imgEl.src = payload.url;
-            }
-            if (statusEl) statusEl.textContent = "Done";
-          } catch (err) {
-            if (statusEl) statusEl.textContent = "Failed: " + (err.message || String(err));
-          }
-        }
-
-        plannerSetStatus("Image operation completed for planner results.");
-        btn.disabled = false;
       }
 
       function plannerSearchNearby() {
@@ -1781,7 +1506,6 @@
 
       document.addEventListener("DOMContentLoaded", function () {
         showTab("{{ active_tab or 'planner' }}");
-        plannerToggleOperationFields();
       });
 
       document.addEventListener("DOMContentLoaded", function () {
@@ -2064,9 +1788,6 @@
         }
         if (e.target && e.target.id === "image-action") {
           toggleActionParameterFields();
-        }
-        if (e.target && e.target.id === "planner-op-action") {
-          plannerToggleOperationFields();
         }
       });
 
