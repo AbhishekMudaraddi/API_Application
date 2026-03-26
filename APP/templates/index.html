@@ -1401,7 +1401,7 @@
           shadowSize: [41, 41],
         });
 
-        var bounds = L.latLngBounds([[currentLat, currentLon]]);
+        var points = [[currentLat, currentLon]];
         L.marker([currentLat, currentLon], { icon: blueIcon })
           .addTo(plannerMap)
           .bindPopup("Your current location");
@@ -1411,13 +1411,20 @@
             L.marker([p.lat, p.lon], { icon: redIcon })
               .addTo(plannerMap)
               .bindPopup(p.name || "Place");
-            bounds.extend([p.lat, p.lon]);
+            points.push([p.lat, p.lon]);
           }
         });
 
-        if (bounds.isValid()) {
-          plannerMap.fitBounds(bounds, { padding: [25, 25] });
-        }
+        // Map container is shown dynamically; invalidate size before fitting so centering is accurate.
+        setTimeout(function () {
+          plannerMap.invalidateSize();
+          var bounds = L.latLngBounds(points);
+          if (bounds.isValid()) {
+            plannerMap.fitBounds(bounds, { padding: [35, 35], maxZoom: 15 });
+          } else {
+            plannerMap.setView([currentLat, currentLon], 14);
+          }
+        }, 80);
       }
 
       function plannerRender(data) {
