@@ -747,16 +747,42 @@
         margin-top: 14px;
       }
 
+      .planner-results .places-list {
+        gap: 12px;
+      }
+
+      .planner-results .place {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 10px;
+      }
+
+      @media (max-width: 760px) {
+        .planner-results .place {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .planner-content {
+        min-width: 0;
+      }
+
       .planner-image {
-        margin-top: 8px;
+        margin-top: 0;
       }
 
       .planner-image img {
         width: 100%;
-        max-width: 320px;
+        max-width: 100%;
+        height: 150px;
+        object-fit: cover;
+        object-position: center;
         border-radius: 10px;
         border: 1px solid var(--border-subtle);
         background: #f8fafc;
+        display: block;
       }
 
       .hidden {
@@ -1341,13 +1367,15 @@
             }
             html +=
               '<li class="place">' +
-                '<div class="place-top">' +
-                  '<span class="place-name">' + (p.name || "Unknown") + '</span>' +
-                  '<span class="tag">' + (p.distanceMeters || "N/A") + ' m</span>' +
-                '</div>' +
-                '<p class="place-meta">Rating: ' + (p.rating ?? "N/A") + ' · Lat ' + (p.lat ?? "N/A") + ', Lon ' + (p.lon ?? "N/A") + ' · Source: ' + (p.source || "N/A") + '</p>' +
-                '<p class="place-address">' + (p.address || "Address not available") + '</p>' +
                 imageBlock +
+                '<div class="planner-content">' +
+                  '<div class="place-top">' +
+                    '<span class="place-name">' + (p.name || "Unknown") + '</span>' +
+                    '<span class="tag">' + (p.distanceMeters || "N/A") + ' m</span>' +
+                  '</div>' +
+                  '<p class="place-meta">Rating: ' + (p.rating ?? "N/A") + ' · Lat ' + (p.lat ?? "N/A") + ', Lon ' + (p.lon ?? "N/A") + ' · Source: ' + (p.source || "N/A") + '</p>' +
+                  '<p class="place-address">' + (p.address || "Address not available") + '</p>' +
+                '</div>' +
               '</li>';
           });
         }
