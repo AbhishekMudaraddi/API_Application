@@ -794,6 +794,12 @@
         margin-top: 8px;
       }
 
+      .planner-pdf-size-compare {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
       .planner-op-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1042,6 +1048,7 @@
                     <a id="planner-original-pdf-link" class="btn-download" href="#" download="planner-results-original.pdf">Download original PDF</a>
                     <a id="planner-compressed-pdf-link" class="btn-download" href="#" download="planner-results-compressed.pdf">Download compressed PDF</a>
                   </div>
+                  <div id="planner-pdf-size-compare" class="planner-pdf-size-compare hidden"></div>
                 </div>
               </div>
             </div>
@@ -1866,6 +1873,57 @@
         }
       }
 
+      function setPlannerPdfSizeCompare(originalBytes, compressedBytes) {
+        var el = document.getElementById("planner-pdf-size-compare");
+        if (!el) {
+          return;
+        }
+        var o = Number(originalBytes);
+        var c = Number(compressedBytes);
+        var text = "Original: " + formatBytes(o) + " | Compressed: " + formatBytes(c);
+        if (o > 0 && c >= 0) {
+          if (c < o) {
+            var saved = o - c;
+            var pct = ((saved / o) * 100).toFixed(1);
+            text += " | Saved: " + formatBytes(saved) + " (" + pct + "%)";
+          } else if (c > o) {
+            var inc = c - o;
+            var incPct = ((inc / o) * 100).toFixed(1);
+            text += " | Increased by: " + formatBytes(inc) + " (" + incPct + "%)";
+          } else {
+            text += " | Same size";
+          }
+        }
+        el.textContent = text;
+        el.classList.remove("hidden");
+      }
+
+      function resetPlannerPdfUi() {
+        var statusEl = document.getElementById("planner-pdf-status");
+        var linksWrap = document.getElementById("planner-pdf-links");
+        var originalLink = document.getElementById("planner-original-pdf-link");
+        var compressedLink = document.getElementById("planner-compressed-pdf-link");
+        var sizeCompareEl = document.getElementById("planner-pdf-size-compare");
+        resetPlannerPdfSteps();
+        showPlannerPdfInline(false);
+        if (statusEl) {
+          statusEl.textContent = "";
+        }
+        if (linksWrap) {
+          linksWrap.classList.add("hidden");
+        }
+        if (originalLink) {
+          originalLink.removeAttribute("href");
+        }
+        if (compressedLink) {
+          compressedLink.removeAttribute("href");
+        }
+        if (sizeCompareEl) {
+          sizeCompareEl.textContent = "";
+          sizeCompareEl.classList.add("hidden");
+        }
+      }
+
       async function plannerDownloadCompressedPdf() {
         var btn = document.getElementById("planner-download-pdf-btn");
         var statusEl = document.getElementById("planner-pdf-status");
@@ -1873,6 +1931,7 @@
         var linksWrap = document.getElementById("planner-pdf-links");
         var originalLink = document.getElementById("planner-original-pdf-link");
         var compressedLink = document.getElementById("planner-compressed-pdf-link");
+        var sizeCompareEl = document.getElementById("planner-pdf-size-compare");
 
         if (!plannerPlaces.length) {
           plannerSetError("No planner results to export.");
@@ -1885,6 +1944,10 @@
         showPlannerPdfInline(true);
         if (linksWrap) {
           linksWrap.classList.add("hidden");
+        }
+        if (sizeCompareEl) {
+          sizeCompareEl.textContent = "";
+          sizeCompareEl.classList.add("hidden");
         }
         if (originalLink) {
           originalLink.removeAttribute("href");
@@ -1922,6 +1985,7 @@
             throw new Error(payload.error || payload.message || "PDF generation failed");
           }
           const originalBlob = await originalRes.blob();
+          var originalBytes = originalBlob.size;
           const originalBlobUrl = URL.createObjectURL(originalBlob);
           if (originalLink) {
             originalLink.href = originalBlobUrl;
@@ -1948,6 +2012,7 @@
             throw new Error(payload.error || payload.message || "PDF compression failed");
           }
           const compressedBlob = await compressedRes.blob();
+          var compressedBytes = compressedBlob.size;
           const compressedBlobUrl = URL.createObjectURL(compressedBlob);
           if (compressedLink) {
             compressedLink.href = compressedBlobUrl;
@@ -1960,6 +2025,7 @@
           if (linksWrap) {
             linksWrap.classList.remove("hidden");
           }
+          setPlannerPdfSizeCompare(originalBytes, compressedBytes);
         } catch (err) {
           statusEl.textContent = "Failed.";
           plannerSetError(err.message || String(err));
@@ -1972,6 +2038,7 @@
         var typeInput = document.getElementById("planner-type");
         var btn = document.getElementById("planner-search-btn");
         var placeType = (typeInput.value || "").trim() || "restaurant";
+        resetPlannerPdfUi();
         plannerSetError("");
         plannerSetStatus("Getting current location...");
         btn.disabled = true;
