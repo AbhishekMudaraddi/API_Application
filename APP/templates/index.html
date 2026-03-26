@@ -703,6 +703,62 @@
         line-height: 1.35;
       }
 
+      .planner-box {
+        margin-top: 8px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--border-subtle);
+        background: #ffffff;
+      }
+
+      .planner-row {
+        display: flex;
+        gap: 10px;
+        align-items: end;
+        flex-wrap: wrap;
+      }
+
+      .planner-row .field {
+        min-width: 240px;
+      }
+
+      .planner-status {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .planner-error {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid rgba(248, 113, 113, 0.5);
+        background: rgba(248, 113, 113, 0.08);
+        color: #b91c1c;
+        font-size: 12px;
+        display: none;
+      }
+
+      .planner-error.visible {
+        display: block;
+      }
+
+      .planner-results {
+        margin-top: 14px;
+      }
+
+      .planner-image {
+        margin-top: 8px;
+      }
+
+      .planner-image img {
+        width: 100%;
+        max-width: 320px;
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+        background: #f8fafc;
+      }
+
       .hidden {
         display: none;
       }
@@ -714,12 +770,20 @@
         <div class="nav-brand">Nearby Places</div>
         <div class="nav-links">
           <button
-            id="tab-playground"
+            id="tab-planner"
             class="nav-link active"
+            type="button"
+            onclick="showTab('planner')"
+          >
+            Planner
+          </button>
+          <button
+            id="tab-playground"
+            class="nav-link"
             type="button"
             onclick="showTab('playground')"
           >
-            Playground
+            API Playground
           </button>
           <button
             id="tab-docs"
@@ -727,21 +791,51 @@
             type="button"
             onclick="showTab('docs')"
           >
-            Documentation
+            My API Documentation
           </button>
         </div>
       </nav>
 
       <header>
-        <h1 class="title">Nearby Places Dashboard</h1>
-        <p class="subtitle">
-          Explore nearby points of interest using your custom API, with location details from a public
-          reverse-geocoding service.
+        <h1 id="page-title" class="title">Plan Your Route</h1>
+        <p id="page-subtitle" class="subtitle">
+          Find nearest places and build your journey plan. Planner section is ready for upcoming features.
         </p>
       </header>
 
       <main>
-        <section id="playground-section" class="layout">
+        <section id="planner-section" class="docs">
+          <h2>Plan Your Route</h2>
+          <p>Enter what you want to find nearby. The app uses your current location automatically.</p>
+          <div class="planner-box">
+            <div class="planner-row">
+              <div class="field">
+                <label for="planner-type">Place / Category</label>
+                <input
+                  id="planner-type"
+                  type="text"
+                  placeholder="e.g. restaurant, cafe, atm, pharmacy"
+                  value="restaurant"
+                />
+              </div>
+              <div class="field">
+                <button id="planner-search-btn" class="btn-primary" type="button" onclick="plannerSearchNearby()">
+                  Search nearby
+                </button>
+              </div>
+            </div>
+            <p id="planner-status" class="planner-status"></p>
+            <div id="planner-error" class="planner-error"></div>
+
+            <div id="planner-results" class="planner-results hidden">
+              <p class="section-label">Top nearby places</p>
+              <ul id="planner-places-list" class="places-list"></ul>
+              <div id="planner-location-card" class="location-card hidden"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="playground-section" class="layout hidden">
           <div class="card">
           <div class="card-heading">
             <h2 class="card-title">Search settings</h2>
@@ -1205,22 +1299,179 @@
         window.location.href = "{{ url_for('index') }}";
       }
 
+      function plannerSetStatus(msg) {
+        var el = document.getElementById("planner-status");
+        if (el) {
+          el.textContent = msg || "";
+        }
+      }
+
+      function plannerSetError(msg) {
+        var el = document.getElementById("planner-error");
+        if (!el) {
+          return;
+        }
+        if (msg) {
+          el.textContent = msg;
+          el.classList.add("visible");
+        } else {
+          el.textContent = "";
+          el.classList.remove("visible");
+        }
+      }
+
+      function plannerRender(data) {
+        var wrap = document.getElementById("planner-results");
+        var list = document.getElementById("planner-places-list");
+        var locationCard = document.getElementById("planner-location-card");
+        var nearby = (data && data.nearby) || {};
+        var places = nearby.places || [];
+        var html = "";
+
+        if (!places.length) {
+          html = '<li class="empty">No nearby places found for this search.</li>';
+        } else {
+          places.forEach(function (p) {
+            var imageBlock = "";
+            if (p.imageUrl) {
+              imageBlock =
+                '<div class="planner-image">' +
+                  '<img src="' + p.imageUrl + '" alt="' + (p.name || "Place") + ' image" loading="lazy" />' +
+                "</div>";
+            }
+            html +=
+              '<li class="place">' +
+                '<div class="place-top">' +
+                  '<span class="place-name">' + (p.name || "Unknown") + '</span>' +
+                  '<span class="tag">' + (p.distanceMeters || "N/A") + ' m</span>' +
+                '</div>' +
+                '<p class="place-meta">Rating: ' + (p.rating ?? "N/A") + ' · Lat ' + (p.lat ?? "N/A") + ', Lon ' + (p.lon ?? "N/A") + ' · Source: ' + (p.source || "N/A") + '</p>' +
+                '<p class="place-address">' + (p.address || "Address not available") + '</p>' +
+                imageBlock +
+              '</li>';
+          });
+        }
+        list.innerHTML = html;
+
+        var geo = data && data.reverseGeo;
+        if (geo) {
+          locationCard.classList.remove("hidden");
+          locationCard.innerHTML =
+            '<p class="location-title">' +
+              ((geo.city || geo.locality || "Unknown locality") + ", " + (geo.principalSubdivision || geo.countryName || "")) +
+            '</p>' +
+            '<div class="location-grid">' +
+              '<span><strong>Country:</strong> ' + (geo.countryName || geo.countryCode || "N/A") + "</span>" +
+              '<span><strong>Continent:</strong> ' + (geo.continent || "N/A") + "</span>" +
+              '<span><strong>Locality:</strong> ' + (geo.locality || geo.city || "N/A") + "</span>" +
+              '<span><strong>Lat/Lon:</strong> ' + (geo.latitude ?? "N/A") + ", " + (geo.longitude ?? "N/A") + "</span>" +
+            "</div>";
+        } else {
+          locationCard.classList.add("hidden");
+          locationCard.innerHTML = "";
+        }
+
+        wrap.classList.remove("hidden");
+      }
+
+      function plannerSearchNearby() {
+        var typeInput = document.getElementById("planner-type");
+        var btn = document.getElementById("planner-search-btn");
+        var placeType = (typeInput.value || "").trim() || "restaurant";
+        plannerSetError("");
+        plannerSetStatus("Getting current location...");
+        btn.disabled = true;
+
+        if (!navigator.geolocation) {
+          plannerSetError("Geolocation is not supported by your browser.");
+          plannerSetStatus("");
+          btn.disabled = false;
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          function (position) {
+            plannerSetStatus("Fetching nearby places...");
+            fetch("{{ url_for('planner_nearby') }}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude,
+                type: placeType,
+              }),
+            })
+              .then(function (res) {
+                return res.text().then(function (text) {
+                  var payload = {};
+                  try {
+                    payload = JSON.parse(text || "{}");
+                  } catch (e) {
+                    throw new Error(text || "Unexpected response");
+                  }
+                  if (!res.ok) {
+                    throw new Error(payload.error || payload.message || "Search failed");
+                  }
+                  return payload;
+                });
+              })
+              .then(function (payload) {
+                plannerRender(payload);
+                plannerSetStatus("Showing top nearby places for: " + placeType);
+              })
+              .catch(function (err) {
+                plannerSetError(err.message || String(err));
+                plannerSetStatus("");
+              })
+              .finally(function () {
+                btn.disabled = false;
+              });
+          },
+          function (error) {
+            plannerSetError("Could not get your location: " + error.message);
+            plannerSetStatus("");
+            btn.disabled = false;
+          }
+        );
+      }
+
       function showTab(tab) {
+        var planner = document.getElementById("planner-section");
         var playground = document.getElementById("playground-section");
         var docs = document.getElementById("docs-section");
+        var tabPlanner = document.getElementById("tab-planner");
         var tabPlayground = document.getElementById("tab-playground");
         var tabDocs = document.getElementById("tab-docs");
+        var pageTitle = document.getElementById("page-title");
+        var pageSubtitle = document.getElementById("page-subtitle");
 
-        if (tab === "docs") {
+        if (tab === "planner") {
+          planner.classList.remove("hidden");
+          playground.classList.add("hidden");
+          docs.classList.add("hidden");
+          tabPlanner.classList.add("active");
+          tabPlayground.classList.remove("active");
+          tabDocs.classList.remove("active");
+          pageTitle.textContent = "Plan Your Route";
+          pageSubtitle.textContent = "Find nearest places and build your journey plan. Planner section is ready for upcoming features.";
+        } else if (tab === "docs") {
+          planner.classList.add("hidden");
           playground.classList.add("hidden");
           docs.classList.remove("hidden");
+          tabPlanner.classList.remove("active");
           tabPlayground.classList.remove("active");
           tabDocs.classList.add("active");
+          pageTitle.textContent = "My API Documentation";
+          pageSubtitle.textContent = "Read endpoint details, parameters, and response formats for your API integrations.";
         } else {
+          planner.classList.add("hidden");
           docs.classList.add("hidden");
           playground.classList.remove("hidden");
+          tabPlanner.classList.remove("active");
           tabDocs.classList.remove("active");
           tabPlayground.classList.add("active");
+          pageTitle.textContent = "API Playground";
+          pageSubtitle.textContent = "Test and explore application features powered by your API, classmate APIs, and public APIs.";
         }
       }
 

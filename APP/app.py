@@ -1,4 +1,5 @@
 import os
+import math
 from urllib.parse import quote
 
 import requests
@@ -28,6 +29,7 @@ IMAGE_PUBLIC_BASE_URL = os.getenv(
     "IMAGE_PUBLIC_BASE_URL",
     "http://image-core-cloud.s3-website-us-east-1.amazonaws.com",
 )
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 
 
 def _extract_image_uri(payload: dict) -> str | None:
@@ -95,6 +97,76 @@ def call_reverse_geocode(lat: float, lon: float) -> dict | None:
         return response.json()
     except Exception:
         return None
+
+
+def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371000
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return r * c
+
+
+def _planner_get_places_with_images(lat: float, lon: float, place_type: str, limit: int = 5) -> list[dict]:
+    """Planner-specific place search using Google Places directly with photo URLs."""
+    if not GOOGLE_PLACES_API_KEY:
+        return []
+
+    response = requests.get(
+        "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+        params={
+            "location": f"{lat},{lon}",
+            "radius": 2000,
+            "keyword": place_type,
+            "key": GOOGLE_PLACES_API_KEY,
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    status = payload.get("status")
+    if status not in ("OK", "ZERO_RESULTS"):
+        return []
+
+    places: list[dict] = []
+    for result in payload.get("results", []):
+        loc = (result.get("geometry") or {}).get("location") or {}
+        p_lat = loc.get("lat")
+        p_lon = loc.get("lng")
+        if p_lat is None or p_lon is None:
+            continue
+
+        photos = result.get("photos") or []
+        photo_ref = None
+        if photos and isinstance(photos[0], dict):
+            photo_ref = photos[0].get("photo_reference")
+
+        image_url = None
+        if photo_ref:
+            image_url = (
+                "https://maps.googleapis.com/maps/api/place/photo"
+                f"?maxwidth=700&photo_reference={quote(str(photo_ref))}&key={quote(GOOGLE_PLACES_API_KEY)}"
+            )
+
+        places.append(
+            {
+                "name": result.get("name", "Unknown"),
+                "rating": result.get("rating", "N/A"),
+                "address": result.get("vicinity") or result.get("formatted_address") or "N/A",
+                "lat": p_lat,
+                "lon": p_lon,
+                "distanceMeters": round(_haversine_distance_m(lat, lon, p_lat, p_lon), 1),
+                "imageUrl": image_url,
+                "photoReference": photo_ref,
+                "source": "GooglePlacesDirect",
+            }
+        )
+
+    places.sort(key=lambda x: x["distanceMeters"])
+    return places[:limit]
 
 
 @app.route("/compress", methods=["POST"])
@@ -236,6 +308,42 @@ def image_transform_proxy():
             "uri": transformed_uri,
             "url": transformed_url,
             "upstream": payload,
+        }
+    )
+
+
+@app.route("/planner/nearby", methods=["POST"])
+def planner_nearby():
+    """Planner endpoint: use current location + place keyword and return top nearby places."""
+    body = request.get_json(silent=True) or {}
+    lat = body.get("lat")
+    lon = body.get("lon")
+    place_type = str(body.get("type", "cafe")).strip() or "cafe"
+
+    if lat is None or lon is None:
+        return {"error": "lat and lon are required"}, 400
+
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+    except ValueError:
+        return {"error": "lat and lon must be numbers"}, 400
+
+    places = _planner_get_places_with_images(lat_f, lon_f, place_type, 5)
+    if GOOGLE_PLACES_API_KEY and not places:
+        return {"error": "No nearby places found or Google Places returned no results."}, 404
+    if not GOOGLE_PLACES_API_KEY:
+        return {"error": "Planner image search requires GOOGLE_PLACES_API_KEY in APP environment."}, 500
+
+    nearby_data = {"places": places}
+    reverse_geo = call_reverse_geocode(lat_f, lon_f)
+
+    return jsonify(
+        {
+            "ok": True,
+            "input": {"lat": lat_f, "lon": lon_f, "type": place_type},
+            "nearby": nearby_data,
+            "reverseGeo": reverse_geo,
         }
     )
 
