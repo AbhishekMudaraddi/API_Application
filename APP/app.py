@@ -350,7 +350,7 @@ def planner_nearby():
 
 @app.route("/planner/annotate-image", methods=["POST"])
 def planner_annotate_image():
-    """Overlay rating + distance text on a planner image via classmate text transform API."""
+    """Blur planner image slightly, then overlay centered rating + distance text."""
     body = request.get_json(silent=True) or {}
     image_url = str(body.get("imageUrl", "")).strip()
     rating = body.get("rating", "N/A")
@@ -393,37 +393,66 @@ def planner_annotate_image():
     if not uri:
         return {"error": "Upload succeeded but no image uri was returned."}, 502
 
-    label_text = f"Rating: {rating}  Distance: {distance} m"
-    transform_payload = {
+    # 1) Light blur for better text readability
+    blur_payload = {
         "uri": uri,
-        "action": "text",
+        "action": "blur",
         "parameters": {
-            "text": label_text,
-            "font_size": 20,
-            "font_color": "(255,255,255,255)",
-            "angle": 0,
-            "text_x": 16,
-            "text_y": 16,
-        },
+            "blur_radius": 2,
+        }
     }
     try:
-        transform_resp = requests.post(
+        blur_resp = requests.post(
             f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
-            json=transform_payload,
+            json=blur_payload,
             timeout=240,
         )
     except requests.RequestException as exc:
-        return {"error": f"Image transform upstream failed: {exc!s}"}, 502
+        return {"error": f"Image blur upstream failed: {exc!s}"}, 502
 
     try:
-        transformed_payload = transform_resp.json()
+        blur_result_payload = blur_resp.json()
     except Exception:
-        transformed_payload = {"raw": transform_resp.text[:2000] if transform_resp.text else ""}
+        blur_result_payload = {"raw": blur_resp.text[:2000] if blur_resp.text else ""}
 
-    if transform_resp.status_code >= 400:
-        return transformed_payload, transform_resp.status_code
+    if blur_resp.status_code >= 400:
+        return blur_result_payload, blur_resp.status_code
 
-    transformed_uri = _extract_image_uri(transformed_payload) or uri
+    blurred_uri = _extract_image_uri(blur_result_payload) or uri
+
+    # 2) Add centered text (estimated center for Google Places photos with maxwidth ~700)
+    label_text = f"Rating: {rating}  |  Distance: {distance} m"
+    approx_text_x = max(20, int(350 - (len(label_text) * 7)))
+    text_payload = {
+        "uri": blurred_uri,
+        "action": "text",
+        "parameters": {
+            "text": label_text,
+            "font_size": 28,
+            "font_color": "(255,255,255,255)",
+            "angle": 0,
+            "text_x": approx_text_x,
+            "text_y": 180,
+        },
+    }
+    try:
+        text_resp = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
+            json=text_payload,
+            timeout=240,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image text transform upstream failed: {exc!s}"}, 502
+
+    try:
+        transformed_payload = text_resp.json()
+    except Exception:
+        transformed_payload = {"raw": text_resp.text[:2000] if text_resp.text else ""}
+
+    if text_resp.status_code >= 400:
+        return transformed_payload, text_resp.status_code
+
+    transformed_uri = _extract_image_uri(transformed_payload) or blurred_uri
     transformed_url = transformed_payload.get("url") if isinstance(transformed_payload, dict) else None
     if not isinstance(transformed_url, str) or not transformed_url.strip():
         transformed_url = _build_public_image_url(transformed_uri)
