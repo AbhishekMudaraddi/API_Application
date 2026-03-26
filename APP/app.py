@@ -1,9 +1,12 @@
 import os
 import math
+import io
 from urllib.parse import quote
 
 import requests
 from flask import Flask, Response, jsonify, render_template, request
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 
@@ -600,6 +603,123 @@ def planner_process_image():
             "upstream": transformed_payload,
         }
     )
+
+
+@app.route("/planner/download-compressed-pdf", methods=["POST"])
+def planner_download_compressed_pdf():
+    """Build planner PDF with images, then compress via classmate PDF API."""
+    body = request.get_json(silent=True) or {}
+    places = body.get("places") or []
+    search_type = str(body.get("searchType", "")).strip()
+    location_label = str(body.get("locationLabel", "")).strip()
+
+    if not isinstance(places, list) or not places:
+        return {"error": "places is required"}, 400
+
+    # Build planner PDF in-memory.
+    pdf_buf = io.BytesIO()
+    pdf = canvas.Canvas(pdf_buf, pagesize=(595, 842))  # A4 points
+    page_width, page_height = 595, 842
+    margin_x = 36
+    y = page_height - 42
+
+    pdf.setFont("Helvetica-Bold", 16)
+    pdf.drawString(margin_x, y, "Planner Results")
+    y -= 22
+    pdf.setFont("Helvetica", 11)
+    if search_type:
+        pdf.drawString(margin_x, y, f"Search type: {search_type}")
+        y -= 16
+    if location_label:
+        pdf.drawString(margin_x, y, f"Location: {location_label}")
+        y -= 16
+    y -= 8
+
+    for idx, p in enumerate(places, start=1):
+        if y < 220:
+            pdf.showPage()
+            y = page_height - 42
+
+        name = str(p.get("name", "Unknown place"))
+        rating = p.get("rating", "N/A")
+        distance = p.get("distanceMeters", "N/A")
+        address = str(p.get("address") or "Address not available")
+        image_url = str(p.get("imageUrl") or "").strip()
+
+        pdf.setFont("Helvetica-Bold", 12)
+        pdf.drawString(margin_x, y, f"{idx}. {name}")
+        y -= 16
+        pdf.setFont("Helvetica", 10)
+        pdf.drawString(margin_x, y, f"Rating: {rating}    Distance: {distance} m")
+        y -= 14
+        pdf.drawString(margin_x, y, f"Address: {address[:95]}")
+        y -= 8
+
+        if image_url:
+            try:
+                img_resp = requests.get(image_url, timeout=30)
+                img_resp.raise_for_status()
+                img_reader = ImageReader(io.BytesIO(img_resp.content))
+                img_w = 260
+                img_h = 150
+                pdf.drawImage(
+                    img_reader,
+                    margin_x,
+                    y - img_h - 6,
+                    width=img_w,
+                    height=img_h,
+                    preserveAspectRatio=True,
+                    anchor="sw",
+                    mask="auto",
+                )
+                y -= img_h + 14
+            except requests.RequestException:
+                pdf.setFont("Helvetica-Oblique", 9)
+                pdf.drawString(margin_x, y - 10, "Image unavailable while generating PDF.")
+                y -= 22
+        else:
+            y -= 6
+
+        pdf.line(margin_x, y, page_width - margin_x, y)
+        y -= 14
+
+    pdf.save()
+    pdf_buf.seek(0)
+
+    # Compress the generated PDF using classmate compression API.
+    files = {
+        COMPRESS_FILE_FIELD: (
+            "planner-results.pdf",
+            pdf_buf.getvalue(),
+            "application/pdf",
+        )
+    }
+    headers = {}
+    api_key = os.getenv("COMPRESS_API_KEY")
+    if api_key:
+        headers["x-api-key"] = api_key
+
+    try:
+        upstream = requests.post(
+            COMPRESS_API_URL,
+            files=files,
+            headers=headers,
+            timeout=300,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Upstream request failed: {exc!s}"}, 502
+
+    if upstream.status_code >= 400:
+        try:
+            err = upstream.json()
+        except Exception:
+            err = {"error": upstream.text[:2000] if upstream.text else "Compression upstream error"}
+        return err, upstream.status_code
+
+    content_type = upstream.headers.get("Content-Type", "application/pdf")
+    out = Response(upstream.content, mimetype=content_type)
+    out.headers["Content-Disposition"] = 'attachment; filename="planner-results-compressed.pdf"'
+    return out
 
 
 @app.route("/", methods=["GET", "POST"])

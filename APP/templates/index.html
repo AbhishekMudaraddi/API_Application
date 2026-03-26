@@ -749,6 +749,9 @@
 
       .planner-plan-actions {
         margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
       }
 
       .planner-image-ops {
@@ -759,6 +762,29 @@
 
       .planner-image-ops.hidden {
         display: none;
+      }
+
+      .planner-pdf-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 1200;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .planner-pdf-modal.visible {
+        display: flex;
+      }
+
+      .planner-pdf-modal-card {
+        width: min(560px, 100%);
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid var(--border-subtle);
+        padding: 16px;
       }
 
       .planner-op-grid {
@@ -978,6 +1004,9 @@
                   </button>
                   <button id="planner-revert-op-btn" class="btn-ghost" type="button" onclick="plannerRevertOriginalImages()">
                     Revert to original images
+                  </button>
+                  <button id="planner-download-pdf-btn" class="btn-primary" type="button" onclick="plannerDownloadCompressedPdf()">
+                    Download compressed PDF
                   </button>
                 </div>
               </div>
@@ -1414,6 +1443,33 @@
       </main>
     </div>
 
+    <div id="planner-pdf-modal" class="planner-pdf-modal" role="dialog" aria-modal="true" aria-labelledby="planner-pdf-title">
+      <div class="planner-pdf-modal-card">
+        <h3 id="planner-pdf-title" class="card-title" style="margin: 0 0 8px;">Preparing your compressed planner PDF</h3>
+        <p id="planner-pdf-status" class="compress-status">Starting...</p>
+        <div id="planner-pdf-steps-wrap" class="compress-steps-wrap">
+          <ol class="compress-steps">
+            <li class="compress-step pending" id="planner-pdf-step-1">
+              <span class="compress-step-icon" aria-hidden="true"></span>
+              <span class="compress-step-label">Collect current planner results and images</span>
+            </li>
+            <li class="compress-step pending" id="planner-pdf-step-2">
+              <span class="compress-step-icon" aria-hidden="true"></span>
+              <span class="compress-step-label">Generate planner PDF on Flask backend</span>
+            </li>
+            <li class="compress-step pending" id="planner-pdf-step-3">
+              <span class="compress-step-icon" aria-hidden="true"></span>
+              <span class="compress-step-label">Compress PDF via classmate API</span>
+            </li>
+            <li class="compress-step pending" id="planner-pdf-step-4">
+              <span class="compress-step-icon" aria-hidden="true"></span>
+              <span class="compress-step-label">Download compressed PDF</span>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
     <script>
       function useCurrentLocation() {
         if (!navigator.geolocation) {
@@ -1775,6 +1831,107 @@
           }
         });
         plannerSetStatus("Reverted to original images.");
+      }
+
+      function setPlannerPdfStep(stepNum, state) {
+        var el = document.getElementById("planner-pdf-step-" + stepNum);
+        if (!el) {
+          return;
+        }
+        el.classList.remove("pending", "active", "done");
+        el.classList.add(state);
+      }
+
+      function resetPlannerPdfSteps() {
+        var i;
+        for (i = 1; i <= 4; i++) {
+          setPlannerPdfStep(i, "pending");
+        }
+      }
+
+      function showPlannerPdfModal(show) {
+        var modal = document.getElementById("planner-pdf-modal");
+        if (!modal) return;
+        if (show) {
+          modal.classList.add("visible");
+        } else {
+          modal.classList.remove("visible");
+        }
+      }
+
+      async function plannerDownloadCompressedPdf() {
+        var btn = document.getElementById("planner-download-pdf-btn");
+        var statusEl = document.getElementById("planner-pdf-status");
+        var locationCard = document.getElementById("planner-location-card");
+
+        if (!plannerPlaces.length) {
+          plannerSetError("No planner results to export.");
+          return;
+        }
+
+        plannerSetError("");
+        btn.disabled = true;
+        resetPlannerPdfSteps();
+        showPlannerPdfModal(true);
+
+        try {
+          setPlannerPdfStep(1, "active");
+          statusEl.textContent = "Collecting planner results...";
+          var locationText = locationCard ? (locationCard.textContent || "").replace(/\s+/g, " ").trim() : "";
+          setPlannerPdfStep(1, "done");
+          setPlannerPdfStep(2, "active");
+
+          statusEl.textContent = "Generating PDF and compressing it...";
+          const res = await fetch("{{ url_for('planner_download_compressed_pdf') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              places: plannerPlaces,
+              searchType: (document.getElementById("planner-type").value || "").trim(),
+              locationLabel: locationText,
+            }),
+          });
+
+          if (!res.ok) {
+            const txt = await res.text();
+            let payload = {};
+            try {
+              payload = JSON.parse(txt || "{}");
+            } catch (ignore) {
+              throw new Error(txt || "PDF generation failed");
+            }
+            throw new Error(payload.error || payload.message || "PDF generation failed");
+          }
+
+          setPlannerPdfStep(2, "done");
+          setPlannerPdfStep(3, "active");
+          setPlannerPdfStep(3, "done");
+          setPlannerPdfStep(4, "active");
+
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = "planner-results-compressed.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(blobUrl);
+
+          setPlannerPdfStep(4, "done");
+          statusEl.textContent = "Done. Download started.";
+          setTimeout(function () {
+            showPlannerPdfModal(false);
+          }, 1200);
+        } catch (err) {
+          statusEl.textContent = "Failed.";
+          plannerSetError(err.message || String(err));
+          setTimeout(function () {
+            showPlannerPdfModal(false);
+          }, 800);
+        } finally {
+          btn.disabled = false;
+        }
       }
 
       function plannerSearchNearby() {
