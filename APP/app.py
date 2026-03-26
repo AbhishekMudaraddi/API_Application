@@ -393,13 +393,65 @@ def planner_annotate_image():
     if not uri:
         return {"error": "Upload succeeded but no image uri was returned."}, 502
 
-    # 1) Light blur for better text readability
-    blur_payload = {
+    # 1) Normalize image dimensions so text coordinates map consistently.
+    resize_payload = {
         "uri": uri,
+        "action": "resize",
+        "parameters": {
+            "width": 700,
+            "height": 400,
+        },
+    }
+    try:
+        resize_resp = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
+            json=resize_payload,
+            timeout=240,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image resize upstream failed: {exc!s}"}, 502
+
+    try:
+        resize_result_payload = resize_resp.json()
+    except Exception:
+        resize_result_payload = {"raw": resize_resp.text[:2000] if resize_resp.text else ""}
+
+    if resize_resp.status_code >= 400:
+        return resize_result_payload, resize_resp.status_code
+
+    resized_uri = _extract_image_uri(resize_result_payload) or uri
+
+    # 2) Convert to grayscale for better readability.
+    grayscale_payload = {
+        "uri": resized_uri,
+        "action": "grayscale",
+    }
+    try:
+        grayscale_resp = requests.post(
+            f"{IMAGE_API_BASE_URL.rstrip('/')}/transform",
+            json=grayscale_payload,
+            timeout=240,
+        )
+    except requests.RequestException as exc:
+        return {"error": f"Image grayscale upstream failed: {exc!s}"}, 502
+
+    try:
+        grayscale_result_payload = grayscale_resp.json()
+    except Exception:
+        grayscale_result_payload = {"raw": grayscale_resp.text[:2000] if grayscale_resp.text else ""}
+
+    if grayscale_resp.status_code >= 400:
+        return grayscale_result_payload, grayscale_resp.status_code
+
+    grayscale_uri = _extract_image_uri(grayscale_result_payload) or resized_uri
+
+    # 3) Light blur for better text readability.
+    blur_payload = {
+        "uri": grayscale_uri,
         "action": "blur",
         "parameters": {
-            "blur_radius": 2,
-        }
+            "blur_radius": 1,
+        },
     }
     try:
         blur_resp = requests.post(
@@ -418,21 +470,21 @@ def planner_annotate_image():
     if blur_resp.status_code >= 400:
         return blur_result_payload, blur_resp.status_code
 
-    blurred_uri = _extract_image_uri(blur_result_payload) or uri
+    blurred_uri = _extract_image_uri(blur_result_payload) or grayscale_uri
 
-    # 2) Add centered text (estimated center for Google Places photos with maxwidth ~700)
+    # 4) Add centered text.
     label_text = f"Rating: {rating}  |  Distance: {distance} m"
-    approx_text_x = max(20, int(350 - (len(label_text) * 7)))
+    approx_text_x = max(20, int((700 / 2) - (len(label_text) * 8.2)))
     text_payload = {
         "uri": blurred_uri,
         "action": "text",
         "parameters": {
             "text": label_text,
-            "font_size": 28,
+            "font_size": 32,
             "font_color": "(255,255,255,255)",
             "angle": 0,
             "text_x": approx_text_x,
-            "text_y": 180,
+            "text_y": 200,
         },
     }
     try:
